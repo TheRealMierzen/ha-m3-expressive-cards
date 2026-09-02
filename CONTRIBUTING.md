@@ -217,7 +217,7 @@ Beyond scaffolding the card itself, three places need updating or the card
 ships nowhere:
 
 1. `package.json` — add the folder to `workspaces`.
-2. `bundle/src/m3-cards.ts` — add the `import` so the combined file
+2. `bundle/src/index.ts` — add the `import` so the combined file
    registers it.
 3. `scripts/assemble-dist.mjs` — add the folder and its output filename to
    `OUTPUTS`, so a missing build fails the release instead of silently

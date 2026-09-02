@@ -15,7 +15,7 @@ const outDir = join(root, "dist");
 
 /** workspace directory -> the file its build emits into <workspace>/dist/ */
 const OUTPUTS = {
-  bundle: "m3-cards.js",
+  bundle: "ha-m3-expressive-cards.js",
   "activity-heatmap": "activity-heatmap-card.js",
   "body-stats": "body-stats-card.js",
   "garage-control": "garage-auto-open-card.js",

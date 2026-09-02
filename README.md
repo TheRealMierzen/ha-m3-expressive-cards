@@ -15,15 +15,15 @@ Installing this repository gives you all nine cards from a single resource.
 2. Add this repository's URL with category **Dashboard**.
 3. Install **M3 Expressive Cards**, then reload your browser.
 
-HACS registers the combined `m3-cards.js` resource for you — every card
+HACS registers the combined `ha-m3-expressive-cards.js` resource for you — every card
 below is immediately available in **Add Card**. No per-card setup.
 
 ### Manual
 
-Download `m3-cards.js` from the
-[latest release](../../releases/latest), copy it into `<config>/www/`, then
+Download `ha-m3-expressive-cards.js` from the
+[latest release](https://github.com/TheRealMierzen/ha-m3-expressive-cards/releases/latest), copy it into `<config>/www/`, then
 add a dashboard resource (Settings → Dashboards → ⋮ → Resources) pointing at
-`/local/m3-cards.js`, type **JavaScript Module**.
+`/local/ha-m3-expressive-cards.js`, type **JavaScript Module**.
 
 Each card is also published as its own standalone file in the same release,
 if you would rather load only the one you use.

@@ -6,9 +6,9 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, "src/m3-cards.ts"),
+      entry: resolve(__dirname, "src/index.ts"),
       formats: ["es"],
-      fileName: () => "m3-cards.js",
+      fileName: () => "ha-m3-expressive-cards.js",
     },
     rollupOptions: {
       // Same contract as the per-card builds: everything (Lit included)

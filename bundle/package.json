@@ -1,0 +1,19 @@
+{
+  "name": "m3-cards-bundle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Combined bundle registering every card in this repository from a single file",
+  "type": "module",
+  "scripts": {
+    "build": "vite build --config vite.config.build.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "@mdi/js": "^7.4.47",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

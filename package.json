@@ -1,0 +1,28 @@
+{
+  "name": "lovelace-m3-cards",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Material 3 Expressive Lovelace cards for Home Assistant",
+  "type": "module",
+  "workspaces": [
+    "activity-heatmap",
+    "body-stats",
+    "garage-control",
+    "geyser-control",
+    "gym-tracker",
+    "irrigation-control",
+    "pc-control",
+    "quick-toggles",
+    "schedule-timeline-card",
+    "bundle"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present && node scripts/assemble-dist.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "clean": "rm -rf dist */dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

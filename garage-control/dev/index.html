@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Garage Auto Open Card — Dev Harness</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --card-background-color: #1c1c1c;
+        --primary-text-color: #e1e1e1;
+        --secondary-text-color: #9b9b9b;
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --card-background-color: #ffffff;
+        --primary-text-color: #212121;
+        --secondary-text-color: #727272;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: #0d0d0d;
+        color: #ffffff;
+        min-height: 100vh;
+      }
+      :root[data-theme="light"] body {
+        background: #f9f9f7;
+        color: #0b0b0b;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+      }
+      .toolbar button {
+        font: inherit;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(128, 128, 128, 0.4);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+      .toolbar h1 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0;
+        margin-right: auto;
+        opacity: 0.7;
+      }
+      #app {
+        max-width: 480px;
+        margin: 24px auto;
+        padding: 0 20px;
+      }
+      #log-panel {
+        max-width: 480px;
+        margin: 0 auto 40px;
+        padding: 0 20px;
+      }
+      #log-panel h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.6;
+      }
+      #log {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        opacity: 0.85;
+        max-height: 160px;
+        overflow-y: auto;
+      }
+      .log-line {
+        padding: 2px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <h1>Garage Auto Open Card — Dev Harness</h1>
+      <button id="toggle-left">Toggle left home/away</button>
+      <button id="toggle-right">Toggle right home/away</button>
+      <button id="toggle-auto">Toggle automation on/off</button>
+      <button id="toggle-offline">Toggle right door offline</button>
+      <button id="dark-toggle">☀ Light mode</button>
+    </div>
+    <div id="app"></div>
+    <div id="log-panel">
+      <h2>Service calls</h2>
+      <div id="log"></div>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

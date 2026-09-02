@@ -1,0 +1,13 @@
+# Build output — produced by `npm run build`, attached to GitHub releases.
+dist/
+node_modules/
+
+# Local-only: personal dashboard YAML, screenshots, superseded originals.
+_private/
+
+# Per-machine tool state.
+.claude/settings.local.json
+
+# Editors / OS
+.DS_Store
+*.log

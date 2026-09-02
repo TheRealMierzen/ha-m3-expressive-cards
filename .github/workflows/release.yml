@@ -1,0 +1,46 @@
+# Builds every card plus the combined bundle and attaches them to the
+# GitHub release. HACS reads the latest release's assets, so the tag is what
+# users actually install — nothing built is committed to the branch.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run build
+
+      # The version in the tag is the version users see in HACS; keep the
+      # root package.json in step with it so the two never disagree.
+      - name: Check tag matches package.json version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Tag v$tag does not match package.json version $pkg" >&2
+            exit 1
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.js
+          generate_release_notes: true

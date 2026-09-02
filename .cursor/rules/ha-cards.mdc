@@ -1,0 +1,29 @@
+---
+description: Home Assistant Lovelace card conventions (Lit + TypeScript monorepo)
+alwaysApply: true
+---
+
+# HA custom cards
+
+Independent Lovelace cards in top-level folders (`geyser-control`, `garage-control`, …).
+Lit + TypeScript, Vite → single `dist/<name>.js`.
+
+**Read [CONTRIBUTING.md](../../CONTRIBUTING.md) before editing** — source of truth for layout,
+non-negotiables, collapsibles, container queries, testing, and deploy.
+
+## Workflow
+
+- Work inside the target card folder; run `npm run dev` / `build` / `typecheck` there
+- `npm install` hanging? Stop it, run `npm install -D @mdi/js` instead
+- Collapsibles: copy pattern from `geyser-control` or `irrigation-control`
+- Deploy: copy `dist/*.js` to HA `www/`, register resource, **bump `?v=`** on the URL
+
+## Easy to forget
+
+- No `getCardSize()` / `getGridOptions()`
+- `homeassistant.toggle` / `turn_on` / `turn_off` — not domain-specific services
+- Theme via `hass.themes.darkMode` → `data-theme`, not `prefers-color-scheme`
+- `--mdc-icon-size` on every sized `ha-icon` rule
+- `@container` on `ha-card`; never `container-type` on `:host`
+- `entitySignature()` in the `hass` setter
+- Dev harness can't reproduce sections-view reflow or real `ha-icon` sizing

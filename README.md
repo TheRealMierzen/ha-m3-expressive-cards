@@ -82,3 +82,7 @@ npm run build   # every card + the combined bundle -> dist/
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout, the
 non-negotiables every card follows, and how to test without a running Home
 Assistant instance.
+
+## License
+
+[MIT](LICENSE).

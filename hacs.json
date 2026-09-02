@@ -1,6 +1,4 @@
 {
   "name": "M3 Expressive Cards",
-  "filename": "ha-m3-expressive-cards.js",
-  "render_readme": true,
-  "homeassistant": "2024.8.0"
+  "filename": "ha-m3-expressive-cards.js"
 }

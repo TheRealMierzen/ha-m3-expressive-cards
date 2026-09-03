@@ -1,12 +1,14 @@
+import { registerMockHaForm } from "./mock-ha-form";
 import { registerMockHaIcon } from "./mock-ha-icon";
 import "../src/gym-tracker-card";
 import type { GymTrackerCardConfig } from "../src/types";
 import { buildMockHass } from "./mock-hass";
 import { buildFixtureEntities, FixtureState } from "./fixtures";
 
+registerMockHaForm();
 registerMockHaIcon();
 
-const config: GymTrackerCardConfig = {
+let config: GymTrackerCardConfig = {
   type: "custom:gym-tracker-card",
   title: "Gym Tracker",
   actual_counter: "counter.gym_actual_counter",
@@ -22,7 +24,21 @@ const card = document.createElement("gym-tracker-card") as HTMLElement & {
   setConfig(config: GymTrackerCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
-card.setConfig(config);
+// The editor is the real one the card ships — every edit here goes through the
+// same config-changed contract HA uses, and lands on the card beside it.
+const editor = document.createElement("gym-tracker-card-editor") as HTMLElement & {
+  setConfig(config: GymTrackerCardConfig): void;
+  hass: ReturnType<typeof buildMockHass>;
+};
+
+function setConfig(next: GymTrackerCardConfig): void {
+  config = next;
+  card.setConfig(config);
+  editor.setConfig(config);
+  document.getElementById("config-dump")!.textContent = JSON.stringify(config, null, 2);
+}
+
+setConfig(config);
 
 const COST_CYCLE = [500, 750, 1000, 1500];
 
@@ -43,7 +59,7 @@ function renderStatePanel(): void {
 }
 
 function refreshHass(): void {
-  card.hass = buildMockHass(buildFixtureEntities(state), darkMode, (domain, service, data) => {
+  card.hass = editor.hass = buildMockHass(buildFixtureEntities(state), darkMode, (domain, service, data) => {
     const entityId = typeof data?.entity_id === "string" ? data.entity_id : undefined;
     if (domain === "counter" && entityId === "counter.gym_target_counter") {
       // Real HA counters only clamp at a configured minimum — assuming 0
@@ -67,6 +83,7 @@ function applyTheme(): void {
 applyTheme();
 refreshHass();
 document.getElementById("app")!.appendChild(card);
+document.getElementById("editor-host")!.appendChild(editor);
 
 document.getElementById("log-visit")!.addEventListener("click", () => {
   state.actual += 1;
@@ -98,4 +115,15 @@ document.getElementById("dark-toggle")!.addEventListener("click", () => {
   darkMode = !darkMode;
   applyTheme();
   refreshHass();
+});
+
+editor.addEventListener("config-changed", (event) => {
+  setConfig((event as CustomEvent<{ config: GymTrackerCardConfig }>).detail.config);
+  refreshHass();
+});
+
+document.getElementById("editor-toggle")!.addEventListener("click", () => {
+  const panel = document.getElementById("editor-panel")!;
+  const visible = panel.classList.toggle("visible");
+  document.getElementById("editor-toggle")!.textContent = visible ? "Hide editor" : "Show editor";
 });

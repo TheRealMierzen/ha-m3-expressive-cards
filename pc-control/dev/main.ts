@@ -1,12 +1,14 @@
+import { registerMockHaForm } from "./mock-ha-form";
 import { registerMockHaIcon } from "./mock-ha-icon";
 import "../src/pc-overview-card";
 import type { PcOverviewCardConfig } from "../src/types";
 import { buildMockHass } from "./mock-hass";
 import { buildFixtureEntities } from "./fixtures";
 
+registerMockHaForm();
 registerMockHaIcon();
 
-const config: PcOverviewCardConfig = {
+let config: PcOverviewCardConfig = {
   type: "custom:pc-overview-card",
   title: "Desktop PC",
   tracker: "device_tracker.pc",
@@ -62,7 +64,21 @@ const card = document.createElement("pc-overview-card") as HTMLElement & {
   setConfig(config: PcOverviewCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
-card.setConfig(config);
+// The editor is the real one the card ships — every edit here goes through the
+// same config-changed contract HA uses, and lands on the card beside it.
+const editor = document.createElement("pc-overview-card-editor") as HTMLElement & {
+  setConfig(config: PcOverviewCardConfig): void;
+  hass: ReturnType<typeof buildMockHass>;
+};
+
+function setConfig(next: PcOverviewCardConfig): void {
+  config = next;
+  card.setConfig(config);
+  editor.setConfig(config);
+  document.getElementById("config-dump")!.textContent = JSON.stringify(config, null, 2);
+}
+
+setConfig(config);
 
 let poweredOn = true;
 let cpuPct = 34;
@@ -77,7 +93,7 @@ let smartBad = false;
 let darkMode = true;
 
 function refreshHass(): void {
-  card.hass = buildMockHass(
+  card.hass = editor.hass = buildMockHass(
     buildFixtureEntities({
       poweredOn,
       cpuPct,
@@ -125,6 +141,7 @@ function applyTheme(): void {
 applyTheme();
 refreshHass();
 document.getElementById("app")!.appendChild(card);
+document.getElementById("editor-host")!.appendChild(editor);
 
 window.addEventListener("hass-more-info", (evt) => {
   const detail = (evt as CustomEvent<{ entityId: string }>).detail;
@@ -165,4 +182,15 @@ document.getElementById("dark-toggle")!.addEventListener("click", () => {
   darkMode = !darkMode;
   applyTheme();
   refreshHass();
+});
+
+editor.addEventListener("config-changed", (event) => {
+  setConfig((event as CustomEvent<{ config: PcOverviewCardConfig }>).detail.config);
+  refreshHass();
+});
+
+document.getElementById("editor-toggle")!.addEventListener("click", () => {
+  const panel = document.getElementById("editor-panel")!;
+  const visible = panel.classList.toggle("visible");
+  document.getElementById("editor-toggle")!.textContent = visible ? "Hide editor" : "Show editor";
 });

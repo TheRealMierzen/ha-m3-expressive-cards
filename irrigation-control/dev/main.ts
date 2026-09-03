@@ -1,12 +1,14 @@
+import { registerMockHaForm } from "./mock-ha-form";
 import { registerMockHaIcon } from "./mock-ha-icon";
 import "../src/irrigation-schedule-card";
 import type { IrrigationScheduleCardConfig } from "../src/types";
 import { buildMockHass } from "./mock-hass";
 import { buildFixtureEntities, FixtureState } from "./fixtures";
 
+registerMockHaForm();
 registerMockHaIcon();
 
-const config: IrrigationScheduleCardConfig = {
+let config: IrrigationScheduleCardConfig = {
   type: "custom:irrigation-schedule-card",
   title: "Front Lawn Irrigation",
   automation: "automation.irrigation_ai",
@@ -22,7 +24,21 @@ const card = document.createElement("irrigation-schedule-card") as HTMLElement &
   setConfig(config: IrrigationScheduleCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
-card.setConfig(config);
+// The editor is the real one the card ships — every edit here goes through the
+// same config-changed contract HA uses, and lands on the card beside it.
+const editor = document.createElement("irrigation-schedule-card-editor") as HTMLElement & {
+  setConfig(config: IrrigationScheduleCardConfig): void;
+  hass: ReturnType<typeof buildMockHass>;
+};
+
+function setConfig(next: IrrigationScheduleCardConfig): void {
+  config = next;
+  card.setConfig(config);
+  editor.setConfig(config);
+  document.getElementById("config-dump")!.textContent = JSON.stringify(config, null, 2);
+}
+
+setConfig(config);
 
 function parseHms(hms: string): number {
   const match = /^(\d+):(\d{2}):(\d{2})$/.exec(hms.trim());
@@ -59,7 +75,7 @@ function log(message: string): void {
 }
 
 function refreshHass(): void {
-  card.hass = buildMockHass(buildFixtureEntities(state), darkMode, (domain, service, data) => {
+  card.hass = editor.hass = buildMockHass(buildFixtureEntities(state), darkMode, (domain, service, data) => {
     log(`callService ${domain}.${service} ${JSON.stringify(data ?? {})}`);
 
     if (domain === "automation") {
@@ -100,6 +116,7 @@ function applyTheme(): void {
 applyTheme();
 refreshHass();
 document.getElementById("app")!.appendChild(card);
+document.getElementById("editor-host")!.appendChild(editor);
 
 document.getElementById("toggle-automation")!.addEventListener("click", () => {
   state.automationOn = !state.automationOn;
@@ -133,4 +150,15 @@ document.getElementById("dark-toggle")!.addEventListener("click", () => {
   darkMode = !darkMode;
   applyTheme();
   refreshHass();
+});
+
+editor.addEventListener("config-changed", (event) => {
+  setConfig((event as CustomEvent<{ config: IrrigationScheduleCardConfig }>).detail.config);
+  refreshHass();
+});
+
+document.getElementById("editor-toggle")!.addEventListener("click", () => {
+  const panel = document.getElementById("editor-panel")!;
+  const visible = panel.classList.toggle("visible");
+  document.getElementById("editor-toggle")!.textContent = visible ? "Hide editor" : "Show editor";
 });

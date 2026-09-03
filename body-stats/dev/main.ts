@@ -1,9 +1,11 @@
+import { registerMockHaForm } from "./mock-ha-form";
 import { registerMockHaIcon } from "./mock-ha-icon";
 import "../src/body-stats-card";
 import type { BodyStatsCardConfig } from "../src/types";
 import { buildMockHass } from "./mock-hass";
 import { buildFixtureEntities, FixtureState, PRESETS } from "./fixtures";
 
+registerMockHaForm();
 registerMockHaIcon();
 
 const FULL_CONFIG: BodyStatsCardConfig = {
@@ -41,10 +43,27 @@ const card = document.createElement("body-stats-card") as HTMLElement & {
   hass: ReturnType<typeof buildMockHass>;
   addEventListener(type: "hass-more-info", listener: (e: CustomEvent<{ entityId: string }>) => void): void;
 };
-card.setConfig(FULL_CONFIG);
 card.addEventListener("hass-more-info", (e) => {
   logMoreInfo(e.detail.entityId);
 });
+
+// The editor is the real one the card ships — every edit here goes through
+// the same config-changed contract HA uses.
+const editor = document.createElement("body-stats-card-editor") as HTMLElement & {
+  setConfig(config: BodyStatsCardConfig): void;
+  hass: ReturnType<typeof buildMockHass>;
+};
+
+/** Config lives here so the toolbar and the editor write to the same place. */
+let config: BodyStatsCardConfig = FULL_CONFIG;
+
+function setConfig(next: BodyStatsCardConfig): void {
+  config = next;
+  card.setConfig(config);
+  editor.setConfig(config);
+}
+
+setConfig(FULL_CONFIG);
 
 let state: FixtureState = { ...PRESETS.ok };
 let presetName = "ok";
@@ -75,8 +94,11 @@ function renderStatePanel(): void {
 }
 
 function refreshHass(): void {
-  card.hass = buildMockHass(buildFixtureEntities(state), darkMode);
+  const hass = buildMockHass(buildFixtureEntities(state), darkMode);
+  card.hass = hass;
+  editor.hass = hass;
   renderStatePanel();
+  document.getElementById("config-dump")!.textContent = JSON.stringify(config, null, 2);
 }
 
 function applyTheme(): void {
@@ -88,6 +110,7 @@ function applyTheme(): void {
 applyTheme();
 refreshHass();
 document.getElementById("app")!.appendChild(card);
+document.getElementById("editor-host")!.appendChild(editor);
 
 function setPreset(name: keyof typeof PRESETS): void {
   presetName = name;
@@ -104,7 +127,7 @@ document.getElementById("preset-typical")!.addEventListener("click", () => setPr
 document.getElementById("cycle-sex-age")!.addEventListener("click", () => {
   sexAgeIndex = (sexAgeIndex + 1) % SEX_AGE_CYCLE.length;
   const base = partial ? PARTIAL_CONFIG : FULL_CONFIG;
-  card.setConfig({ ...base, ...SEX_AGE_CYCLE[sexAgeIndex] });
+  setConfig({ ...base, ...SEX_AGE_CYCLE[sexAgeIndex] });
   refreshHass();
 });
 
@@ -116,7 +139,7 @@ document.getElementById("toggle-unavailable")!.addEventListener("click", () => {
 document.getElementById("toggle-partial")!.addEventListener("click", () => {
   partial = !partial;
   const base = partial ? PARTIAL_CONFIG : FULL_CONFIG;
-  card.setConfig({ ...base, ...SEX_AGE_CYCLE[sexAgeIndex] });
+  setConfig({ ...base, ...SEX_AGE_CYCLE[sexAgeIndex] });
   refreshHass();
 });
 
@@ -124,4 +147,15 @@ document.getElementById("dark-toggle")!.addEventListener("click", () => {
   darkMode = !darkMode;
   applyTheme();
   refreshHass();
+});
+
+editor.addEventListener("config-changed", (event) => {
+  setConfig((event as CustomEvent<{ config: BodyStatsCardConfig }>).detail.config);
+  refreshHass();
+});
+
+document.getElementById("editor-toggle")!.addEventListener("click", () => {
+  const panel = document.getElementById("editor-panel")!;
+  const visible = panel.classList.toggle("visible");
+  document.getElementById("editor-toggle")!.textContent = visible ? "Hide editor" : "Show editor";
 });

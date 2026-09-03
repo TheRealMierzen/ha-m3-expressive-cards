@@ -42,6 +42,9 @@ blocks must be identical across cards — see CONTRIBUTING.md.
 - **Material 3 Expressive** — `geyser-control` (`src/m3.css.ts` tokens,
   `src/card.css.ts` components). The only migrated card; copy from it.
 - **Collapsible sections** — copy from `geyser-control` or `irrigation-control`
+- **Visual editors** — `quick-toggles` (bespoke rows with live previews) or any
+  sectioned editor, e.g. `body-stats` / `pc-control`; conventions and the
+  reasons behind them are in CONTRIBUTING.md's "Editors" section
 - **New card scaffold** — mirror an existing card's folder layout and Vite
   configs, and start from `geyser-control`'s `m3.css.ts`
 - **Recorder/statistics history over `hass.callWS`** — see `activity-heatmap`

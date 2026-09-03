@@ -1,12 +1,14 @@
+import { registerMockHaForm } from "./mock-ha-form";
 import { registerMockHaIcon } from "./mock-ha-icon";
 import "../src/geyser-status-card";
 import type { GeyserStatusCardConfig } from "../src/types";
 import { buildMockHass } from "./mock-hass";
 import { buildFixtureEntities, FixtureState } from "./fixtures";
 
+registerMockHaForm();
 registerMockHaIcon();
 
-const config: GeyserStatusCardConfig = {
+let config: GeyserStatusCardConfig = {
   type: "custom:geyser-status-card",
   title: "Geyser",
   switch: "switch.geyser_power",
@@ -24,7 +26,21 @@ const card = document.createElement("geyser-status-card") as HTMLElement & {
   setConfig(config: GeyserStatusCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
-card.setConfig(config);
+// The editor is the real one the card ships — every edit here goes through the
+// same config-changed contract HA uses, and lands on the card beside it.
+const editor = document.createElement("geyser-status-card-editor") as HTMLElement & {
+  setConfig(config: GeyserStatusCardConfig): void;
+  hass: ReturnType<typeof buildMockHass>;
+};
+
+function setConfig(next: GeyserStatusCardConfig): void {
+  config = next;
+  card.setConfig(config);
+  editor.setConfig(config);
+  document.getElementById("config-dump")!.textContent = JSON.stringify(config, null, 2);
+}
+
+setConfig(config);
 
 /** next_shower reports a full datetime; default_shower_time reports a bare
  * time-of-day. Deriving the former from the latter keeps them genuinely
@@ -75,7 +91,7 @@ function log(message: string): void {
 }
 
 function refreshHass(): void {
-  card.hass = buildMockHass(buildFixtureEntities(state), darkMode, (domain, service, data) => {
+  card.hass = editor.hass = buildMockHass(buildFixtureEntities(state), darkMode, (domain, service, data) => {
     log(`callService ${domain}.${service} ${JSON.stringify(data ?? {})}`);
 
     if (domain === "switch" && data?.entity_id === config.switch) {
@@ -108,6 +124,7 @@ function applyTheme(): void {
 applyTheme();
 refreshHass();
 document.getElementById("app")!.appendChild(card);
+document.getElementById("editor-host")!.appendChild(editor);
 
 window.addEventListener("hass-more-info", (evt) => {
   const detail = (evt as CustomEvent<{ entityId: string }>).detail;
@@ -157,4 +174,15 @@ document.getElementById("dark-toggle")!.addEventListener("click", () => {
   darkMode = !darkMode;
   applyTheme();
   refreshHass();
+});
+
+editor.addEventListener("config-changed", (event) => {
+  setConfig((event as CustomEvent<{ config: GeyserStatusCardConfig }>).detail.config);
+  refreshHass();
+});
+
+document.getElementById("editor-toggle")!.addEventListener("click", () => {
+  const panel = document.getElementById("editor-panel")!;
+  const visible = panel.classList.toggle("visible");
+  document.getElementById("editor-toggle")!.textContent = visible ? "Hide editor" : "Show editor";
 });

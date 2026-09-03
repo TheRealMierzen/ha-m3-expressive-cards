@@ -78,6 +78,34 @@
       .log-line {
         padding: 2px 0;
       }
+      /* Visual editor preview: the real editor element the card ships,
+         driven by dev/mock-ha-form.ts. */
+      #editor-panel {
+        max-width: 520px;
+        margin: 0 auto 32px;
+        padding: 0 20px;
+        display: none;
+      }
+      #editor-panel.visible {
+        display: block;
+      }
+      #editor-panel h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.6;
+      }
+      #config-dump {
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        white-space: pre-wrap;
+        opacity: 0.7;
+        max-height: 260px;
+        overflow: auto;
+        border: 1px solid rgba(128, 128, 128, 0.25);
+        border-radius: 8px;
+        padding: 8px;
+      }
     </style>
   </head>
   <body>
@@ -87,9 +115,16 @@
       <button id="toggle-should-water">Toggle should-water</button>
       <button id="toggle-valve">Toggle valve (manual)</button>
       <button id="pause-timer">Pause/resume timer</button>
+      <button id="editor-toggle">Show editor</button>
       <button id="dark-toggle">☀ Light mode</button>
     </div>
     <div id="app"></div>
+    <div id="editor-panel">
+      <h2>Visual editor</h2>
+      <div id="editor-host"></div>
+      <h2>Resulting config</h2>
+      <div id="config-dump"></div>
+    </div>
     <div id="log-panel">
       <h2>callService events</h2>
       <div id="log"></div>

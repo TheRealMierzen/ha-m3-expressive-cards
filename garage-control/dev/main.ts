@@ -1,12 +1,14 @@
+import { registerMockHaForm } from "./mock-ha-form";
 import { registerMockHaIcon } from "./mock-ha-icon";
 import "../src/garage-auto-open-card";
 import type { GarageAutoOpenCardConfig } from "../src/types";
 import { buildMockHass } from "./mock-hass";
 import { buildFixtureEntities, DoorFixture } from "./fixtures";
 
+registerMockHaForm();
 registerMockHaIcon();
 
-const config: GarageAutoOpenCardConfig = {
+let config: GarageAutoOpenCardConfig = {
   type: "custom:garage-auto-open-card",
   title: "Auto Garage",
   automation: "automation.garage_auto_open",
@@ -22,7 +24,21 @@ const card = document.createElement("garage-auto-open-card") as HTMLElement & {
   setConfig(config: GarageAutoOpenCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
-card.setConfig(config);
+// The editor is the real one the card ships — every edit here goes through the
+// same config-changed contract HA uses, and lands on the card beside it.
+const editor = document.createElement("garage-auto-open-card-editor") as HTMLElement & {
+  setConfig(config: GarageAutoOpenCardConfig): void;
+  hass: ReturnType<typeof buildMockHass>;
+};
+
+function setConfig(next: GarageAutoOpenCardConfig): void {
+  config = next;
+  card.setConfig(config);
+  editor.setConfig(config);
+  document.getElementById("config-dump")!.textContent = JSON.stringify(config, null, 2);
+}
+
+setConfig(config);
 
 let autoOn = true;
 let leftHome = false;
@@ -91,7 +107,7 @@ function handleCoverService(service: string, entityId: string): void {
 }
 
 function refreshHass(): void {
-  card.hass = buildMockHass(
+  card.hass = editor.hass = buildMockHass(
     buildFixtureEntities({
       autoOn,
       leftHome,
@@ -128,6 +144,7 @@ function applyTheme(): void {
 applyTheme();
 refreshHass();
 document.getElementById("app")!.appendChild(card);
+document.getElementById("editor-host")!.appendChild(editor);
 
 document.getElementById("toggle-left")!.addEventListener("click", () => {
   leftHome = !leftHome;
@@ -150,4 +167,15 @@ document.getElementById("dark-toggle")!.addEventListener("click", () => {
   darkMode = !darkMode;
   applyTheme();
   refreshHass();
+});
+
+editor.addEventListener("config-changed", (event) => {
+  setConfig((event as CustomEvent<{ config: GarageAutoOpenCardConfig }>).detail.config);
+  refreshHass();
+});
+
+document.getElementById("editor-toggle")!.addEventListener("click", () => {
+  const panel = document.getElementById("editor-panel")!;
+  const visible = panel.classList.toggle("visible");
+  document.getElementById("editor-toggle")!.textContent = visible ? "Hide editor" : "Show editor";
 });

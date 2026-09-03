@@ -34,12 +34,13 @@ dist/                     # build output (gitignored; attached to releases)
 <card>/
 src/
   <name>-card.ts          # main LitElement, render() + service calls
-  <name>-card-editor.ts   # ha-form visual editor
+  <name>-card-editor.ts   # the visual editor (see "Editors" below)
+  editor.css.ts           # shared editor chrome, copied verbatim between cards
   compute.ts              # computeVals(hass, config, now) — pure, no side effects
   card.css.ts             # lit css`` template
   types.ts                # HomeAssistant/config interfaces
 dev/
-  index.html, main.ts, mock-hass.ts, mock-ha-icon.ts, fixtures.ts
+  index.html, main.ts, mock-hass.ts, mock-ha-icon.ts, mock-ha-form.ts, fixtures.ts
 vite.config.dev.ts        # `npm run dev` — local harness, no HA needed
 vite.config.build.ts      # `npm run build` — single-file dist bundle
 ```
@@ -133,6 +134,55 @@ each card is fine in isolation.
   states of only the entities this card actually reads, and skip
   `requestUpdate()` if it hasn't changed, so the card doesn't re-render on
   every unrelated `hass` update elsewhere in HA.
+
+## Editors
+
+Copy from `quick-toggles` (bespoke, per-item rows with live previews) or from
+any of the sectioned editors — `body-stats`, `geyser-control`, `pc-control`
+and the rest share one shell, so any of them shows the shape.
+
+The rules, all of which exist because a form broke one of them first:
+
+- **Group into sections, and say what each one holds when it's closed.** A
+  flat column of a dozen entity pickers is unreadable, and the label is not
+  the place to fix that. Each section header carries a one-line summary —
+  `6 of 8 wired`, `hold 600ms · home = home` — so the shut form still tells
+  you where things stand.
+- **Group by where the values come from, not by where they land.** Somebody
+  filling in `body-stats` has a scale, a wearable and an eye test in front of
+  them; they do not have "the torso".
+- **Read the wired entities back.** Every section renders a `Reading now`
+  strip showing what its entities currently report. Picking the right one out
+  of `sensor.body_fat` / `sensor.body_fat_2` is the actual work of these
+  forms, and its current value is the only proof you got it right.
+- **`unavailable` and a missing entity are faults. `unknown` is not.** A
+  `button.*` reads `unknown` until its first press. Flagging that red made
+  four correctly wired buttons look broken.
+- **Labels name the thing; helpers explain it.** `Visceral fat`, not
+  `Visceral fat (belly badge, sub reason for torso)`.
+- **Never write a cleared field back as `""`.** Delete the key, so emptying a
+  picker removes it from the YAML.
+- **Never write a value that only equals the card's own default.** It makes
+  the YAML lie about being deliberate and freezes the card at whatever the
+  default was the day the editor was opened. The form still *shows* the
+  default, so the field isn't misleadingly blank.
+- **Reconcile only the keys the emitting form owns.** One section must not
+  clobber another's, and a key no form covers has to survive untouched — that
+  is what keeps a YAML-only or back-compat option alive.
+- **Cover the whole config, or say what you didn't.** "Use the YAML editor for
+  the rest" is a bug report, not a design. Where a config shape has no
+  `ha-form` selector — a value that is a string *or* a list, a tri-state, a
+  list of objects — synthesise a field and translate it on the way through.
+- **Sections expand by rendering, not by animating a `max-height`.** An
+  `ha-form`'s height isn't known up front and a fixed max-height clips it.
+  This is the one place the collapsible recipe below does *not* apply.
+
+Wire the editor into the card's dev harness — `dev/mock-ha-form.ts`, a
+`Show editor` toolbar button, and a live config dump. Both editors that were
+already good were the only two with this; the seven that weren't, weren't.
+The mock is not a visual proxy for real HA (its selectors are plain inputs),
+but it exercises the whole data flow, and every rule above is checkable
+against the config dump with a short Playwright probe.
 
 ## Collapsible sections
 

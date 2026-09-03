@@ -134,7 +134,7 @@ const SECTIONS: Section[] = [
 
 /* ------------------------------------------------------------------- shell */
 
-@customElement("geyser-status-card-editor")
+@customElement("m3-geyser-status-card-editor")
 export class GeyserStatusCardEditor extends LitElement {
   static styles = editorStyles;
 
@@ -306,6 +306,6 @@ export class GeyserStatusCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "geyser-status-card-editor": GeyserStatusCardEditor;
+    "m3-geyser-status-card-editor": GeyserStatusCardEditor;
   }
 }

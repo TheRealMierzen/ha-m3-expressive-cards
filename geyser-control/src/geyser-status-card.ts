@@ -32,7 +32,7 @@ function entitySignature(hass: HomeAssistant, config: GeyserStatusCardConfig): s
     .join("|");
 }
 
-@customElement("geyser-status-card")
+@customElement("m3-geyser-status-card")
 export class GeyserStatusCard extends LitElement {
   static styles = cardStyles;
 
@@ -99,11 +99,11 @@ export class GeyserStatusCard extends LitElement {
   }
 
   static getStubConfig(): GeyserStatusCardConfig {
-    return { type: "custom:geyser-status-card", title: "Geyser" };
+    return { type: "custom:m3-geyser-status-card", title: "Geyser" };
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("geyser-status-card-editor");
+    return document.createElement("m3-geyser-status-card-editor");
   }
 
   protected updated(): void {
@@ -601,7 +601,7 @@ export class GeyserStatusCard extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "geyser-status-card": GeyserStatusCard;
+    "m3-geyser-status-card": GeyserStatusCard;
   }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
@@ -610,7 +610,7 @@ declare global {
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "geyser-status-card",
-  name: "Geyser Status Card",
+  type: "m3-geyser-status-card",
+  name: "M3 Geyser Status Card",
   description: "Geyser power, temperature progress, heating schedule, and shower-time override",
 });

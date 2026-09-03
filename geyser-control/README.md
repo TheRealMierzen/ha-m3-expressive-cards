@@ -169,7 +169,7 @@ dependency).
 2. Settings → Dashboards → ⋮ → Resources → Add Resource, URL
    `/local/geyser-status-card.js`, type **JavaScript Module**.
 3. Add the card via the picker (search "Geyser Status Card") or YAML:
-   `type: custom:geyser-status-card`.
+   `type: custom:m3-geyser-status-card`.
 4. Bump the resource URL's `?v=` on future rebuilds so the browser
    actually refetches the file instead of serving a cached copy.
 
@@ -332,7 +332,7 @@ reset logic itself.
 
 ```
 src/
-  geyser-status-card.ts        # the <geyser-status-card> element
+  geyser-status-card.ts        # the <m3-geyser-status-card> element
   geyser-status-card-editor.ts # visual editor (ha-form) for all fields
   compute.ts                   # pure value computation: temp formatting, progress %, mode, time/shower formatting, next-vs-default shower comparison
   m3.css.ts                    # Material 3 Expressive tokens: generated tonal palette, shape scale, spring easings, type scale

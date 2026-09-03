@@ -39,7 +39,7 @@ function normalizeAction(spec: ActionSpec | undefined, fallback: ActionName): Ac
   return spec;
 }
 
-@customElement("quick-toggles-card")
+@customElement("m3-quick-toggles-card")
 export class QuickTogglesCard extends LitElement {
   static styles = [medallionStyles, cardStyles];
 
@@ -120,11 +120,11 @@ export class QuickTogglesCard extends LitElement {
   }
 
   static getStubConfig(): QuickTogglesCardConfig {
-    return { type: "custom:quick-toggles-card", title: "Quick toggles", toggles: [] };
+    return { type: "custom:m3-quick-toggles-card", title: "Quick toggles", toggles: [] };
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("quick-toggles-card-editor");
+    return document.createElement("m3-quick-toggles-card-editor");
   }
 
   /* ----------------------------------------------------- optimistic state */
@@ -377,7 +377,7 @@ export class QuickTogglesCard extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "quick-toggles-card": QuickTogglesCard;
+    "m3-quick-toggles-card": QuickTogglesCard;
   }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
@@ -387,8 +387,8 @@ declare global {
 // Without this the card works via YAML but never appears in "Add Card".
 window.customCards = window.customCards ?? [];
 window.customCards.push({
-  type: "quick-toggles-card",
-  name: "Quick Toggles",
+  type: "m3-quick-toggles-card",
+  name: "M3 Quick Toggles",
   description:
     "A row of icon-only toggle medallions, with per-toggle icons, colours and condition-driven animations.",
 });

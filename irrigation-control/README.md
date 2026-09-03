@@ -38,7 +38,7 @@ runtime dependency).
 2. Settings → Dashboards → ⋮ → Resources → Add Resource, URL
    `/local/irrigation-schedule-card.js`, type **JavaScript Module**.
 3. Add the card via the picker (search "Irrigation Schedule Card") or
-   YAML: `type: custom:irrigation-schedule-card`.
+   YAML: `type: custom:m3-irrigation-schedule-card`.
 4. Bump the resource URL's `?v=` on future rebuilds so the browser
    actually refetches the file instead of serving a cached copy.
 
@@ -111,7 +111,7 @@ Three things worth knowing:
 
 ```
 src/
-  irrigation-schedule-card.ts        # the <irrigation-schedule-card> element
+  irrigation-schedule-card.ts        # the <m3-irrigation-schedule-card> element
   irrigation-schedule-card-editor.ts # visual editor (ha-form) for all fields
   compute.ts                         # pure value computation: schedule text, timer countdown, valve state
   m3.css.ts                          # Material 3 Expressive tokens (colour/shape/motion/type)

@@ -9,17 +9,17 @@ registerMockHaForm();
 registerMockHaIcon();
 
 let config: ScheduleTimelineCardConfig = {
-  type: "custom:schedule-timeline-card",
+  type: "custom:m3-schedule-timeline-card",
   title: "Daily Schedule",
 };
 
-const card = document.createElement("schedule-timeline-card") as HTMLElement & {
+const card = document.createElement("m3-schedule-timeline-card") as HTMLElement & {
   setConfig(config: ScheduleTimelineCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
 // The editor is the real one the card ships — every edit here goes through the
 // same config-changed contract HA uses, and lands on the card beside it.
-const editor = document.createElement("schedule-timeline-card-editor") as HTMLElement & {
+const editor = document.createElement("m3-schedule-timeline-card-editor") as HTMLElement & {
   setConfig(config: ScheduleTimelineCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };

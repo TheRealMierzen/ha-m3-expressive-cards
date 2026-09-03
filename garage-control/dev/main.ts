@@ -9,7 +9,7 @@ registerMockHaForm();
 registerMockHaIcon();
 
 let config: GarageAutoOpenCardConfig = {
-  type: "custom:garage-auto-open-card",
+  type: "custom:m3-garage-auto-open-card",
   title: "Auto Garage",
   automation: "automation.garage_auto_open",
   left_entity: "device_tracker.my_phone",
@@ -20,13 +20,13 @@ let config: GarageAutoOpenCardConfig = {
   right_label: "Partner",
 };
 
-const card = document.createElement("garage-auto-open-card") as HTMLElement & {
+const card = document.createElement("m3-garage-auto-open-card") as HTMLElement & {
   setConfig(config: GarageAutoOpenCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
 // The editor is the real one the card ships — every edit here goes through the
 // same config-changed contract HA uses, and lands on the card beside it.
-const editor = document.createElement("garage-auto-open-card-editor") as HTMLElement & {
+const editor = document.createElement("m3-garage-auto-open-card-editor") as HTMLElement & {
   setConfig(config: GarageAutoOpenCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };

@@ -8,7 +8,7 @@ hand-written `pc-overview-card.js` to a Lit + TypeScript project
 
 The custom element tag was renamed from `pc-overview-card` to
 `pc-overview-card`. Existing dashboard YAML must be updated to
-`type: custom:pc-overview-card`, and the dashboard resource entry's URL
+`type: custom:m3-pc-overview-card`, and the dashboard resource entry's URL
 must point at the new filename (see Installing into HA below).
 
 ## Developing
@@ -36,7 +36,7 @@ runtime dependency).
 2. Add a dashboard resource entry: Settings → Dashboards → ⋮ →
    Resources → add URL `/local/pc-overview-card.js?v=1`,
    type **JavaScript Module**.
-3. Add the card to a dashboard with `type: custom:pc-overview-card`.
+3. Add the card to a dashboard with `type: custom:m3-pc-overview-card`.
 4. Bump the resource URL's `?v=` on future rebuilds so the browser
    actually refetches the file instead of serving a cached copy.
 
@@ -91,7 +91,7 @@ both are recorded in `src/card.css.ts` next to the rule they justify:
 
 ```
 src/
-  pc-overview-card.ts        # the <pc-overview-card> element
+  pc-overview-card.ts        # the <m3-pc-overview-card> element
   pc-overview-card-editor.ts # visual editor (ha-form) for the common fields
   compute.ts                 # pure value computation + formatting helpers
   m3.css.ts                  # Material 3 Expressive tokens (colour/shape/motion/type)

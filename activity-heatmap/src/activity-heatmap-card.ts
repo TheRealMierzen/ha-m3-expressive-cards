@@ -60,7 +60,7 @@ const GAP_RATIO = 0.22;
 const MAX_CELL_PX = 22;
 const DEFAULT_MIN_CELL_PX = 5;
 
-@customElement("activity-heatmap-card")
+@customElement("m3-activity-heatmap-card")
 export class ActivityHeatmapCard extends LitElement {
   static styles = [cardStyles];
 
@@ -192,11 +192,11 @@ export class ActivityHeatmapCard extends LitElement {
   }
 
   static getStubConfig(): ActivityHeatmapCardConfig {
-    return { type: "custom:activity-heatmap-card", title: "Activity", days: 365, levels: 4 };
+    return { type: "custom:m3-activity-heatmap-card", title: "Activity", days: 365, levels: 4 };
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("activity-heatmap-card-editor");
+    return document.createElement("m3-activity-heatmap-card-editor");
   }
 
   /* ------------------------------------------------------------ data loading */
@@ -956,7 +956,7 @@ export class ActivityHeatmapCard extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "activity-heatmap-card": ActivityHeatmapCard;
+    "m3-activity-heatmap-card": ActivityHeatmapCard;
   }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
@@ -966,8 +966,8 @@ declare global {
 // Without this the card works via YAML but never appears in "Add Card".
 window.customCards = window.customCards ?? [];
 window.customCards.push({
-  type: "activity-heatmap-card",
-  name: "Activity Heatmap",
+  type: "m3-activity-heatmap-card",
+  name: "M3 Activity Heatmap",
   description:
     "A GitHub-style contribution grid for any entity — one cell per day, coloured by how much happened.",
 });

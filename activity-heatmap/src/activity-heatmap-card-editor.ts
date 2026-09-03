@@ -283,7 +283,7 @@ function parseColorList(text: unknown): string[] | undefined {
  * back in `_valueChanged` — which is also why `_data` can't just be a
  * spread of the config.
  */
-@customElement("activity-heatmap-card-editor")
+@customElement("m3-activity-heatmap-card-editor")
 export class ActivityHeatmapCardEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
 
@@ -578,6 +578,6 @@ export class ActivityHeatmapCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "activity-heatmap-card-editor": ActivityHeatmapCardEditor;
+    "m3-activity-heatmap-card-editor": ActivityHeatmapCardEditor;
   }
 }

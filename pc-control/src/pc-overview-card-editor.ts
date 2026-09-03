@@ -423,7 +423,7 @@ const SECTIONS: Section[] = [
 
 /* ------------------------------------------------------------------- shell */
 
-@customElement("pc-overview-card-editor")
+@customElement("m3-pc-overview-card-editor")
 export class PcOverviewCardEditor extends LitElement {
   static styles = editorStyles;
 
@@ -595,6 +595,6 @@ export class PcOverviewCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "pc-overview-card-editor": PcOverviewCardEditor;
+    "m3-pc-overview-card-editor": PcOverviewCardEditor;
   }
 }

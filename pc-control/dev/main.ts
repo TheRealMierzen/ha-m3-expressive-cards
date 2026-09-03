@@ -9,7 +9,7 @@ registerMockHaForm();
 registerMockHaIcon();
 
 let config: PcOverviewCardConfig = {
-  type: "custom:pc-overview-card",
+  type: "custom:m3-pc-overview-card",
   title: "Desktop PC",
   tracker: "device_tracker.pc",
   power_state: "sensor.pc_power_state",
@@ -60,13 +60,13 @@ let config: PcOverviewCardConfig = {
   btn_webcam_stop: "button.pc_webcam_stop",
 };
 
-const card = document.createElement("pc-overview-card") as HTMLElement & {
+const card = document.createElement("m3-pc-overview-card") as HTMLElement & {
   setConfig(config: PcOverviewCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
 // The editor is the real one the card ships — every edit here goes through the
 // same config-changed contract HA uses, and lands on the card beside it.
-const editor = document.createElement("pc-overview-card-editor") as HTMLElement & {
+const editor = document.createElement("m3-pc-overview-card-editor") as HTMLElement & {
   setConfig(config: PcOverviewCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };

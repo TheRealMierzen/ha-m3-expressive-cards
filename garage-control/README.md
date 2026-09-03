@@ -161,7 +161,7 @@ runtime dependency).
    Resources → add URL `/local/garage-auto-open-card.js?v=1`,
    type **JavaScript Module**.
 3. Add the card to a dashboard with
-   `type: custom:garage-auto-open-card`.
+   `type: custom:m3-garage-auto-open-card`.
 4. Bump the resource URL's `?v=` on future rebuilds so the browser
    actually refetches the file instead of serving a cached copy.
 
@@ -192,7 +192,7 @@ card dialog's YAML/code-editor toggle.
 
 ```
 src/
-  garage-auto-open-card.ts        # the <garage-auto-open-card> element
+  garage-auto-open-card.ts        # the <m3-garage-auto-open-card> element
   garage-auto-open-card-editor.ts # visual editor (ha-form) for the common fields
   compute.ts                      # pure value computation (home/away, time-ago, automation state, cover state)
   card.css.ts                     # styles, ported from the original CARD_CSS

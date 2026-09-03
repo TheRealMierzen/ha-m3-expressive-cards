@@ -181,7 +181,7 @@ const SECTIONS: Section[] = [
 
 const TITLE_SCHEMA = [{ name: "title", selector: { text: {} } }];
 
-@customElement("body-stats-card-editor")
+@customElement("m3-body-stats-card-editor")
 export class BodyStatsCardEditor extends LitElement {
   static styles = editorStyles;
 
@@ -338,6 +338,6 @@ export class BodyStatsCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "body-stats-card-editor": BodyStatsCardEditor;
+    "m3-body-stats-card-editor": BodyStatsCardEditor;
   }
 }

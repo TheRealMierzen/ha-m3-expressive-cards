@@ -75,7 +75,7 @@ function entitySignature(hass: HomeAssistant, config: BodyStatsCardConfig): stri
   }).join("|");
 }
 
-@customElement("body-stats-card")
+@customElement("m3-body-stats-card")
 export class BodyStatsCard extends LitElement {
   static styles = cardStyles;
 
@@ -120,7 +120,7 @@ export class BodyStatsCard extends LitElement {
 
   static getStubConfig(): BodyStatsCardConfig {
     return {
-      type: "custom:body-stats-card",
+      type: "custom:m3-body-stats-card",
       title: "Body Stats",
       sleep_efficiency_entity: "sensor.sleep_efficiency",
       eyesight_left_entity: "sensor.eyesight_left",
@@ -138,7 +138,7 @@ export class BodyStatsCard extends LitElement {
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("body-stats-card-editor");
+    return document.createElement("m3-body-stats-card-editor");
   }
 
   protected updated(): void {
@@ -605,7 +605,7 @@ export class BodyStatsCard extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "body-stats-card": BodyStatsCard;
+    "m3-body-stats-card": BodyStatsCard;
   }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
@@ -614,7 +614,7 @@ declare global {
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "body-stats-card",
-  name: "Body Stats Card",
+  type: "m3-body-stats-card",
+  name: "M3 Body Stats Card",
   description: "Live body-composition, sleep, and heart-rate snapshot as a tappable body map",
 });

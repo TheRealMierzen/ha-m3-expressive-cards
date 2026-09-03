@@ -172,7 +172,7 @@ export const DEMOS: DemoConfig[] = [
     id: "stats",
     label: "Statistics (counter mirror)",
     config: {
-      type: "custom:activity-heatmap-card",
+      type: "custom:m3-activity-heatmap-card",
       title: "Gym Consistency",
       entity: "sensor.gym_visits_total",
       source: "statistics",
@@ -187,7 +187,7 @@ export const DEMOS: DemoConfig[] = [
     id: "history",
     label: "History (binary sensor)",
     config: {
-      type: "custom:activity-heatmap-card",
+      type: "custom:m3-activity-heatmap-card",
       title: "Gym Attendance",
       entity: "binary_sensor.gym_presence",
       source: "history",
@@ -204,7 +204,7 @@ export const DEMOS: DemoConfig[] = [
     id: "attribute",
     label: "Attribute (date list)",
     config: {
-      type: "custom:activity-heatmap-card",
+      type: "custom:m3-activity-heatmap-card",
       title: "Workouts Logged",
       entity: "sensor.gym_log",
       source: "attribute",
@@ -221,7 +221,7 @@ export const DEMOS: DemoConfig[] = [
     id: "game",
     label: "Text states + breakdown",
     config: {
-      type: "custom:activity-heatmap-card",
+      type: "custom:m3-activity-heatmap-card",
       title: "Gaming",
       entity: "sensor.current_game",
       source: "history",
@@ -239,7 +239,7 @@ export const DEMOS: DemoConfig[] = [
     id: "energy",
     label: "Energy (continuous, sqrt)",
     config: {
-      type: "custom:activity-heatmap-card",
+      type: "custom:m3-activity-heatmap-card",
       title: "Solar Generation",
       entity: "sensor.solar_energy_daily",
       source: "statistics",
@@ -256,7 +256,7 @@ export const DEMOS: DemoConfig[] = [
     id: "minimal",
     label: "Minimal (no chrome)",
     config: {
-      type: "custom:activity-heatmap-card",
+      type: "custom:m3-activity-heatmap-card",
       entity: "sensor.gym_visits_total",
       source: "statistics",
       weeks: 20,

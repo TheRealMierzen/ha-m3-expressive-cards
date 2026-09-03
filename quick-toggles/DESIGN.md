@@ -1,6 +1,6 @@
 # Quick Toggles Card — design
 
-`custom:quick-toggles-card` → `dist/quick-toggles-card.js`
+`custom:m3-quick-toggles-card` → `dist/quick-toggles-card.js`
 
 A single row of icon-only medallions for the "am I going to the gym / am I on
 leave / is the roomba schedule active" class of helper. Replaces an existing
@@ -111,7 +111,7 @@ nothing.
 ## Config
 
 ```yaml
-type: custom:quick-toggles-card
+type: custom:m3-quick-toggles-card
 title: Controls            # optional — omit for a bare row
 size: md                   # sm | md | lg
 align: center              # start | center | space-between

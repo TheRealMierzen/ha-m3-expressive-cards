@@ -50,7 +50,7 @@ export function buildFixtureEntities(s: FixtureState): HassEntity[] {
  * a red low-battery dot on a spinning medallion.
  */
 export const DEV_CONFIG: QuickTogglesCardConfig = {
-  type: "custom:quick-toggles-card",
+  type: "custom:m3-quick-toggles-card",
   title: "Controls",
   size: "md",
   // align omitted on purpose: the harness should show the default even split.

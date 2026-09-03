@@ -9,7 +9,7 @@ registerMockHaForm();
 registerMockHaIcon();
 
 let config: GeyserStatusCardConfig = {
-  type: "custom:geyser-status-card",
+  type: "custom:m3-geyser-status-card",
   title: "Geyser",
   switch: "switch.geyser_power",
   current_temp: "sensor.geyser_current_temp",
@@ -22,13 +22,13 @@ let config: GeyserStatusCardConfig = {
   default_shower_time: "input_datetime.geyser_default_shower_time",
 };
 
-const card = document.createElement("geyser-status-card") as HTMLElement & {
+const card = document.createElement("m3-geyser-status-card") as HTMLElement & {
   setConfig(config: GeyserStatusCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
 // The editor is the real one the card ships — every edit here goes through the
 // same config-changed contract HA uses, and lands on the card beside it.
-const editor = document.createElement("geyser-status-card-editor") as HTMLElement & {
+const editor = document.createElement("m3-geyser-status-card-editor") as HTMLElement & {
   setConfig(config: GeyserStatusCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };

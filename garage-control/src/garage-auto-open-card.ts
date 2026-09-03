@@ -38,7 +38,7 @@ function entitySignature(hass: HomeAssistant, entityIds: string[]): string {
     .join("|");
 }
 
-@customElement("garage-auto-open-card")
+@customElement("m3-garage-auto-open-card")
 export class GarageAutoOpenCard extends LitElement {
   static styles = cardStyles;
 
@@ -104,11 +104,11 @@ export class GarageAutoOpenCard extends LitElement {
   }
 
   static getStubConfig(): GarageAutoOpenCardConfig {
-    return { type: "custom:garage-auto-open-card", title: "Auto garage" };
+    return { type: "custom:m3-garage-auto-open-card", title: "Auto garage" };
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("garage-auto-open-card-editor");
+    return document.createElement("m3-garage-auto-open-card-editor");
   }
 
   // No getCardSize()/getGridOptions() override: the card's rendered
@@ -542,7 +542,7 @@ export class GarageAutoOpenCard extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "garage-auto-open-card": GarageAutoOpenCard;
+    "m3-garage-auto-open-card": GarageAutoOpenCard;
   }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
@@ -551,7 +551,7 @@ declare global {
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "garage-auto-open-card",
-  name: "Garage Auto Open Card",
+  type: "m3-garage-auto-open-card",
+  name: "M3 Garage Auto Open Card",
   description: "Auto-open automation status, left/right home/away, and hold-to-move garage door controls",
 });

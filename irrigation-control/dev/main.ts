@@ -9,7 +9,7 @@ registerMockHaForm();
 registerMockHaIcon();
 
 let config: IrrigationScheduleCardConfig = {
-  type: "custom:irrigation-schedule-card",
+  type: "custom:m3-irrigation-schedule-card",
   title: "Front Lawn Irrigation",
   automation: "automation.irrigation_ai",
   should_water: "input_boolean.should_water",
@@ -20,13 +20,13 @@ let config: IrrigationScheduleCardConfig = {
   valve: "switch.irrigation_valve",
 };
 
-const card = document.createElement("irrigation-schedule-card") as HTMLElement & {
+const card = document.createElement("m3-irrigation-schedule-card") as HTMLElement & {
   setConfig(config: IrrigationScheduleCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
 // The editor is the real one the card ships — every edit here goes through the
 // same config-changed contract HA uses, and lands on the card beside it.
-const editor = document.createElement("irrigation-schedule-card-editor") as HTMLElement & {
+const editor = document.createElement("m3-irrigation-schedule-card-editor") as HTMLElement & {
   setConfig(config: IrrigationScheduleCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };

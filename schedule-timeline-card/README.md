@@ -60,7 +60,7 @@ Produces a single self-contained module: `dist/schedule-timeline-card.js`
    card picker, or add it via YAML:
 
 ```yaml
-type: custom:schedule-timeline-card
+type: custom:m3-schedule-timeline-card
 title: Daily Schedule
 ```
 
@@ -88,7 +88,7 @@ dialog's YAML/code-editor toggle.
 Example with overrides:
 
 ```yaml
-type: custom:schedule-timeline-card
+type: custom:m3-schedule-timeline-card
 title: Daily Schedule
 short_block_minutes: 15
 exclude_entities:
@@ -131,7 +131,7 @@ validated for lane-versus-lane distinction.
 
 ```
 src/
-  schedule-timeline-card.ts        # the <schedule-timeline-card> element
+  schedule-timeline-card.ts        # the <m3-schedule-timeline-card> element
   schedule-timeline-card-editor.ts # visual editor (ha-form) for the basic config fields
   timeline-renderer.ts             # pure layout math: entities + weekday -> positioned blocks
   time-utils.ts               # HH:MM:SS parsing, midnight-crossing handling

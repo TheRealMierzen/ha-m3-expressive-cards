@@ -108,7 +108,7 @@ const SECTIONS: Section[] = [
 
 /* ------------------------------------------------------------------- shell */
 
-@customElement("irrigation-schedule-card-editor")
+@customElement("m3-irrigation-schedule-card-editor")
 export class IrrigationScheduleCardEditor extends LitElement {
   static styles = editorStyles;
 
@@ -280,6 +280,6 @@ export class IrrigationScheduleCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "irrigation-schedule-card-editor": IrrigationScheduleCardEditor;
+    "m3-irrigation-schedule-card-editor": IrrigationScheduleCardEditor;
   }
 }

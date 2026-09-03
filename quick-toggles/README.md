@@ -32,7 +32,7 @@ layer matrix, and what is and isn't verified.
 ## Configuration
 
 ```yaml
-type: custom:quick-toggles-card
+type: custom:m3-quick-toggles-card
 title: Controls            # optional - omit for a bare row
 size: md                   # sm | md | lg
 align: even                # even | start | center | space-between | space-evenly

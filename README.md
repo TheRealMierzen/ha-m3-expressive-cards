@@ -32,15 +32,15 @@ if you would rather load only the one you use.
 
 | Card | `type:` | What it does |
 |---|---|---|
-| **Activity Heatmap** | `custom:activity-heatmap-card` | GitHub-style contribution heatmap of any entity's daily history |
-| **Body Stats** | `custom:body-stats-card` | Body-map visualization highlighting composition, sleep and heart stats by anatomical region |
-| **Garage Auto Open** | `custom:garage-auto-open-card` | An auto-open automation's state plus left/right home/away presence |
-| **Geyser Status** | `custom:geyser-status-card` | Water-heater power and temperature, heating schedule, shower-time override |
-| **Gym Tracker** | `custom:gym-tracker-card` | Gym visit adherence and membership cost tracking |
-| **Irrigation Schedule** | `custom:irrigation-schedule-card` | Scheduled irrigation with manual valve override |
-| **PC Overview** | `custom:pc-overview-card` | A desktop's power, performance and system overview |
-| **Quick Toggles** | `custom:quick-toggles-card` | A row of icon-only toggle medallions with condition-driven icons, colours and animations |
-| **Schedule Timeline** | `custom:schedule-timeline-card` | Native `schedule.*` helpers drawn as a single timeline |
+| **Activity Heatmap** | `custom:m3-activity-heatmap-card` | GitHub-style contribution heatmap of any entity's daily history |
+| **Body Stats** | `custom:m3-body-stats-card` | Body-map visualization highlighting composition, sleep and heart stats by anatomical region |
+| **Garage Auto Open** | `custom:m3-garage-auto-open-card` | An auto-open automation's state plus left/right home/away presence |
+| **Geyser Status** | `custom:m3-geyser-status-card` | Water-heater power and temperature, heating schedule, shower-time override |
+| **Gym Tracker** | `custom:m3-gym-tracker-card` | Gym visit adherence and membership cost tracking |
+| **Irrigation Schedule** | `custom:m3-irrigation-schedule-card` | Scheduled irrigation with manual valve override |
+| **PC Overview** | `custom:m3-pc-overview-card` | A desktop's power, performance and system overview |
+| **Quick Toggles** | `custom:m3-quick-toggles-card` | A row of icon-only toggle medallions with condition-driven icons, colours and animations |
+| **Schedule Timeline** | `custom:m3-schedule-timeline-card` | Native `schedule.*` helpers drawn as a single timeline |
 
 Every card has a visual editor (⋮ → **Edit Card**) covering its common
 options, and a README in its own folder documenting the full config surface.

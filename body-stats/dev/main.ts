@@ -9,7 +9,7 @@ registerMockHaForm();
 registerMockHaIcon();
 
 const FULL_CONFIG: BodyStatsCardConfig = {
-  type: "custom:body-stats-card",
+  type: "custom:m3-body-stats-card",
   title: "Body Stats",
   sleep_efficiency_entity: "sensor.sleep_efficiency",
   eyesight_left_entity: "sensor.eyesight_left",
@@ -38,7 +38,7 @@ const PARTIAL_CONFIG: BodyStatsCardConfig = {
   water_entity: undefined,
 };
 
-const card = document.createElement("body-stats-card") as HTMLElement & {
+const card = document.createElement("m3-body-stats-card") as HTMLElement & {
   setConfig(config: BodyStatsCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
   addEventListener(type: "hass-more-info", listener: (e: CustomEvent<{ entityId: string }>) => void): void;
@@ -49,7 +49,7 @@ card.addEventListener("hass-more-info", (e) => {
 
 // The editor is the real one the card ships — every edit here goes through
 // the same config-changed contract HA uses.
-const editor = document.createElement("body-stats-card-editor") as HTMLElement & {
+const editor = document.createElement("m3-body-stats-card-editor") as HTMLElement & {
   setConfig(config: BodyStatsCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };

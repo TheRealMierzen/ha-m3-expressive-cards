@@ -23,7 +23,7 @@ function entitySignature(hass: HomeAssistant, config: IrrigationScheduleCardConf
     .join("|");
 }
 
-@customElement("irrigation-schedule-card")
+@customElement("m3-irrigation-schedule-card")
 export class IrrigationScheduleCard extends LitElement {
   static styles = cardStyles;
 
@@ -91,11 +91,11 @@ export class IrrigationScheduleCard extends LitElement {
   }
 
   static getStubConfig(): IrrigationScheduleCardConfig {
-    return { type: "custom:irrigation-schedule-card", title: "Irrigation" };
+    return { type: "custom:m3-irrigation-schedule-card", title: "Irrigation" };
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("irrigation-schedule-card-editor");
+    return document.createElement("m3-irrigation-schedule-card-editor");
   }
 
   disconnectedCallback(): void {
@@ -407,7 +407,7 @@ export class IrrigationScheduleCard extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "irrigation-schedule-card": IrrigationScheduleCard;
+    "m3-irrigation-schedule-card": IrrigationScheduleCard;
   }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
@@ -416,7 +416,7 @@ declare global {
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "irrigation-schedule-card",
-  name: "Irrigation Schedule Card",
+  type: "m3-irrigation-schedule-card",
+  name: "M3 Irrigation Schedule Card",
   description: "AI-scheduled irrigation status with live countdown and safe manual valve override",
 });

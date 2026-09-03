@@ -29,11 +29,11 @@ interface CardElement extends HTMLElement {
   hass: ReturnType<typeof buildMockHass>;
 }
 
-const card = document.createElement("quick-toggles-card") as CardElement;
+const card = document.createElement("m3-quick-toggles-card") as CardElement;
 card.setConfig(config);
 document.getElementById("app")!.appendChild(card);
 
-const editor = document.createElement("quick-toggles-card-editor") as CardElement;
+const editor = document.createElement("m3-quick-toggles-card-editor") as CardElement;
 editor.setConfig(config);
 document.getElementById("editor-host")!.appendChild(editor);
 

@@ -30,7 +30,7 @@ function entitySignature(hass: HomeAssistant, config: PcOverviewCardConfig): str
   }).join("|");
 }
 
-@customElement("pc-overview-card")
+@customElement("m3-pc-overview-card")
 export class PcOverviewCard extends LitElement {
   static styles = cardStyles;
 
@@ -100,11 +100,11 @@ export class PcOverviewCard extends LitElement {
   }
 
   static getStubConfig(): PcOverviewCardConfig {
-    return { type: "custom:pc-overview-card", title: "PC" };
+    return { type: "custom:m3-pc-overview-card", title: "PC" };
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("pc-overview-card-editor");
+    return document.createElement("m3-pc-overview-card-editor");
   }
 
   // No getCardSize()/getGridOptions() override: the card's rendered
@@ -751,7 +751,7 @@ export class PcOverviewCard extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "pc-overview-card": PcOverviewCard;
+    "m3-pc-overview-card": PcOverviewCard;
   }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
@@ -760,7 +760,7 @@ declare global {
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "pc-overview-card",
-  name: "PC Overview Card",
+  type: "m3-pc-overview-card",
+  name: "M3 PC Overview Card",
   description: "PC power state, live perf metrics, Wake-on-LAN, and system info",
 });

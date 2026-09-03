@@ -9,7 +9,7 @@ registerMockHaForm();
 registerMockHaIcon();
 
 let config: GymTrackerCardConfig = {
-  type: "custom:gym-tracker-card",
+  type: "custom:m3-gym-tracker-card",
   title: "Gym Tracker",
   actual_counter: "counter.gym_actual_counter",
   target_counter: "counter.gym_target_counter",
@@ -20,13 +20,13 @@ let config: GymTrackerCardConfig = {
   currency: "R",
 };
 
-const card = document.createElement("gym-tracker-card") as HTMLElement & {
+const card = document.createElement("m3-gym-tracker-card") as HTMLElement & {
   setConfig(config: GymTrackerCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };
 // The editor is the real one the card ships — every edit here goes through the
 // same config-changed contract HA uses, and lands on the card beside it.
-const editor = document.createElement("gym-tracker-card-editor") as HTMLElement & {
+const editor = document.createElement("m3-gym-tracker-card-editor") as HTMLElement & {
   setConfig(config: GymTrackerCardConfig): void;
   hass: ReturnType<typeof buildMockHass>;
 };

@@ -92,7 +92,7 @@ function laneLabelWidthForWidth(width: number): number {
   return 140;
 }
 
-@customElement("schedule-timeline-card")
+@customElement("m3-schedule-timeline-card")
 export class ScheduleTimelineCard extends LitElement {
   static styles = cardStyles;
 
@@ -160,11 +160,11 @@ export class ScheduleTimelineCard extends LitElement {
   }
 
   static getStubConfig(): ScheduleTimelineCardConfig {
-    return { type: "custom:schedule-timeline-card", title: "Daily Schedule" };
+    return { type: "custom:m3-schedule-timeline-card", title: "Daily Schedule" };
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("schedule-timeline-card-editor");
+    return document.createElement("m3-schedule-timeline-card-editor");
   }
 
   getGridOptions() {
@@ -595,6 +595,9 @@ function computeScheduleSignature(hass: HomeAssistant): string {
 }
 
 declare global {
+  interface HTMLElementTagNameMap {
+    "m3-schedule-timeline-card": ScheduleTimelineCard;
+  }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
   }
@@ -602,7 +605,7 @@ declare global {
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "schedule-timeline-card",
-  name: "Schedule Timeline Card",
+  type: "m3-schedule-timeline-card",
+  name: "M3 Schedule Timeline Card",
   description: "Visualize schedule.* helpers as a single timeline",
 });

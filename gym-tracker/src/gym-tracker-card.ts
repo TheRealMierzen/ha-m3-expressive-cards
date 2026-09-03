@@ -82,7 +82,7 @@ function formatCostInputValue(monthlyCost: number | null, unit: CostUnit): strin
   return String(Math.round(value * 100) / 100);
 }
 
-@customElement("gym-tracker-card")
+@customElement("m3-gym-tracker-card")
 export class GymTrackerCard extends LitElement {
   static styles = cardStyles;
 
@@ -139,7 +139,7 @@ export class GymTrackerCard extends LitElement {
 
   static getStubConfig(): GymTrackerCardConfig {
     return {
-      type: "custom:gym-tracker-card",
+      type: "custom:m3-gym-tracker-card",
       title: "Gym Tracker",
       actual_counter: "counter.gym_actual_counter",
       target_counter: "counter.gym_target_counter",
@@ -152,7 +152,7 @@ export class GymTrackerCard extends LitElement {
   }
 
   static getConfigElement(): HTMLElement {
-    return document.createElement("gym-tracker-card-editor");
+    return document.createElement("m3-gym-tracker-card-editor");
   }
 
   /** data-level on the host is what the whole card's colour hangs off — the
@@ -535,7 +535,7 @@ export class GymTrackerCard extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "gym-tracker-card": GymTrackerCard;
+    "m3-gym-tracker-card": GymTrackerCard;
   }
   interface Window {
     customCards?: Array<{ type: string; name: string; description: string; preview?: boolean }>;
@@ -544,7 +544,7 @@ declare global {
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "gym-tracker-card",
-  name: "Gym Tracker Card",
+  type: "m3-gym-tracker-card",
+  name: "M3 Gym Tracker Card",
   description: "Gym visit adherence ring, money-wasted stat, and editable target/cost settings",
 });

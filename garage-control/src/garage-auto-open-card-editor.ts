@@ -204,7 +204,7 @@ const SECTIONS: Section[] = [
 
 /* ------------------------------------------------------------------- shell */
 
-@customElement("garage-auto-open-card-editor")
+@customElement("m3-garage-auto-open-card-editor")
 export class GarageAutoOpenCardEditor extends LitElement {
   static styles = editorStyles;
 
@@ -376,6 +376,6 @@ export class GarageAutoOpenCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "garage-auto-open-card-editor": GarageAutoOpenCardEditor;
+    "m3-garage-auto-open-card-editor": GarageAutoOpenCardEditor;
   }
 }

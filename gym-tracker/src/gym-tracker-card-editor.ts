@@ -152,7 +152,7 @@ const SECTIONS: Section[] = [
 
 /* ------------------------------------------------------------------- shell */
 
-@customElement("gym-tracker-card-editor")
+@customElement("m3-gym-tracker-card-editor")
 export class GymTrackerCardEditor extends LitElement {
   static styles = editorStyles;
 
@@ -324,6 +324,6 @@ export class GymTrackerCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "gym-tracker-card-editor": GymTrackerCardEditor;
+    "m3-gym-tracker-card-editor": GymTrackerCardEditor;
   }
 }

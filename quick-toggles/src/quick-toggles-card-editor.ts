@@ -334,7 +334,7 @@ const HELPERS: Record<string, string> = {
   badge_max: "Values above this show as “N+”, so the badge stays two or three characters.",
 };
 
-@customElement("quick-toggles-card-editor")
+@customElement("m3-quick-toggles-card-editor")
 export class QuickTogglesCardEditor extends LitElement {
   static styles = [medallionStyles, editorStyles];
 
@@ -573,7 +573,7 @@ export class QuickTogglesCardEditor extends LitElement {
       this.hass,
       // Previews ignore the visibility rule on purpose: a row you are editing
       // must stay on screen even when its own condition says to hide it.
-      { type: "custom:quick-toggles-card", toggles: [{ ...item, visible: undefined }] },
+      { type: "custom:m3-quick-toggles-card", toggles: [{ ...item, visible: undefined }] },
       { pending: {}, armedIndex: null, flashIndex: null, reducedMotion: false }
     )[0];
     if (!resolved || resolved.kind !== "toggle") return nothing;
@@ -956,6 +956,6 @@ export class QuickTogglesCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "quick-toggles-card-editor": QuickTogglesCardEditor;
+    "m3-quick-toggles-card-editor": QuickTogglesCardEditor;
   }
 }

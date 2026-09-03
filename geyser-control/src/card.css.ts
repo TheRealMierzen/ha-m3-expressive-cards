@@ -39,7 +39,7 @@ export const cardStyles = css`
     overflow: hidden;
     contain: content;
     /* container-type lives here (a shadow-DOM descendant), never on :host —
-       :host is the actual <geyser-status-card> element HA's sections-view
+       :host is the actual <m3-geyser-status-card> element HA's sections-view
        grid places and measures for auto-row sizing, and container-type
        forces size/layout containment onto whatever it's set on. Keeping it
        on ha-card leaves @container working for descendants without

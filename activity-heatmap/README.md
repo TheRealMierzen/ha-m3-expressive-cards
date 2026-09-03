@@ -56,7 +56,7 @@ template:
 ```
 
 ```yaml
-type: custom:activity-heatmap-card
+type: custom:m3-activity-heatmap-card
 title: Gym Consistency
 entity: sensor.gym_visits_total
 stat: change        # visits *added* that day, not the running total
@@ -96,7 +96,7 @@ For "was the workshop light on", "was anyone home", "did the pump run", point
 it at the entity itself:
 
 ```yaml
-type: custom:activity-heatmap-card
+type: custom:m3-activity-heatmap-card
 title: Workshop hours
 entity: binary_sensor.workshop_occupied
 source: history
@@ -116,7 +116,7 @@ playing, the washing-machine programme, which room is occupied — the question
 is "how long was this doing anything", and the follow-up is "doing what".
 
 ```yaml
-type: custom:activity-heatmap-card
+type: custom:m3-activity-heatmap-card
 title: Gaming
 entity: sensor.current_game
 aggregate: state_time     # hours in any state that isn't ignored
@@ -211,7 +211,7 @@ date to a list on each event is the common shape — read it straight off the
 attribute and skip the recorder entirely:
 
 ```yaml
-type: custom:activity-heatmap-card
+type: custom:m3-activity-heatmap-card
 entity: sensor.gym_log
 attribute: visit_dates
 unit: visits
@@ -265,7 +265,7 @@ Colour / Layout / Extras, with the source-specific fields hidden when they
 don't apply.
 
 ```yaml
-type: custom:activity-heatmap-card
+type: custom:m3-activity-heatmap-card
 title: Gym Consistency        # omit for a bare grid with no header at all
 
 # --- data ---

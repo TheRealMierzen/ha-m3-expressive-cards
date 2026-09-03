@@ -46,10 +46,10 @@ const state = {
 
 let config: ActivityHeatmapCardConfig = structuredClone(DEMOS[0].config);
 
-const card = document.createElement("activity-heatmap-card") as CardElement;
+const card = document.createElement("m3-activity-heatmap-card") as CardElement;
 document.getElementById("app")!.appendChild(card);
 
-const editor = document.createElement("activity-heatmap-card-editor") as CardElement;
+const editor = document.createElement("m3-activity-heatmap-card-editor") as CardElement;
 document.getElementById("editor-host")!.appendChild(editor);
 
 function log(message: string): void {

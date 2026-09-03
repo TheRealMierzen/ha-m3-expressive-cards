@@ -106,7 +106,7 @@ function pruneOverride(override: EntityConfigOverride): EntityConfigOverride {
  * lane is how somebody actually thinks about this card, and it's what makes
  * ordering and the colour overrides reachable without the code editor.
  */
-@customElement("schedule-timeline-card-editor")
+@customElement("m3-schedule-timeline-card-editor")
 export class ScheduleTimelineCardEditor extends LitElement {
   static styles = editorStyles;
 
@@ -406,6 +406,6 @@ export class ScheduleTimelineCardEditor extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "schedule-timeline-card-editor": ScheduleTimelineCardEditor;
+    "m3-schedule-timeline-card-editor": ScheduleTimelineCardEditor;
   }
 }

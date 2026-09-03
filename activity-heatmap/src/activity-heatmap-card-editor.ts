@@ -183,6 +183,75 @@ const SOURCE_ONLY: Record<string, string[]> = {
 
 /* ------------------------------------------------------------------- shapes */
 
+// Keys this editor owns. The form is the sole authority on them, so an edit
+// clears them and rewrites whichever ones still have a value; everything else
+// in the config — Home Assistant's own `grid_options` / `layout_options` /
+// `view_layout` / `visibility`, and hand-written YAML with no selector here,
+// such as `state_colors` — is carried through untouched. Rebuilding the config
+// from a whitelist instead would silently reset the card's layout settings
+// every time a field changed.
+const COPY_KEYS = [
+  "title",
+  "entity",
+  "entities",
+  "stat",
+  "aggregate",
+  "attribute",
+  "on_states",
+  "ignore_states",
+  "breakdown_max",
+  "factor",
+  "unit",
+  "decimals",
+  "days",
+  "weeks",
+  "months",
+  "color",
+  "empty_color",
+  "levels",
+  "min",
+  "max",
+  "cell_size",
+  "min_cell_size",
+  "cell_gap",
+  "cell_radius",
+  "legend_less",
+  "legend_more",
+  "refresh_interval",
+];
+
+// Selects with a meaningful default: written only when they differ from it, so
+// a freshly configured card stays a short, readable YAML block.
+const PICK_DEFAULTS: Record<string, string> = {
+  source: "auto",
+  end: "today",
+  start_day_of_week: "auto",
+  scale: "linear",
+  weekday_labels: "auto",
+  future: "dim",
+  tap_action: "none",
+};
+
+// Booleans that default to on: only the "off" is worth persisting.
+const BOOLEAN_KEYS = [
+  "align_weeks",
+  "month_labels",
+  "highlight_today",
+  "legend",
+  "tooltip",
+  "breakdown_summary",
+];
+
+const EDITED_KEYS = [
+  ...COPY_KEYS,
+  ...Object.keys(PICK_DEFAULTS),
+  ...BOOLEAN_KEYS,
+  "breakdown",
+  "palette",
+  "thresholds",
+  "stats",
+];
+
 interface FormData {
   [key: string]: unknown;
 }
@@ -430,7 +499,10 @@ export class ActivityHeatmapCardEditor extends LitElement {
   private _valueChanged(ev: CustomEvent<{ value: FormData }>): void {
     if (!this._config) return;
     const value = ev.detail.value ?? {};
-    const next: Record<string, unknown> = { type: this._config.type };
+    // Start from the existing config so keys this editor does not own survive
+    // the round trip, then clear the ones the form is about to rewrite.
+    const next: Record<string, unknown> = { ...this._config };
+    for (const key of EDITED_KEYS) delete next[key];
 
     const copy = (key: string): void => {
       const raw = value[key];
@@ -440,70 +512,19 @@ export class ActivityHeatmapCardEditor extends LitElement {
       next[key] = raw;
     };
 
-    for (const key of [
-      "title",
-      "entity",
-      "entities",
-      "stat",
-      "aggregate",
-      "attribute",
-      "on_states",
-      "ignore_states",
-      "breakdown_max",
-      "factor",
-      "unit",
-      "decimals",
-      "days",
-      "weeks",
-      "months",
-      "color",
-      "empty_color",
-      "levels",
-      "min",
-      "max",
-      "cell_size",
-      "min_cell_size",
-      "cell_gap",
-      "cell_radius",
-      "legend_less",
-      "legend_more",
-      "refresh_interval",
-    ]) {
-      copy(key);
-    }
+    for (const key of COPY_KEYS) copy(key);
 
-    // Selects with a meaningful default: written only when they differ from
-    // it, so a freshly configured card stays a short, readable YAML block.
-    const pick = (key: string, fallback: string): void => {
+    for (const [key, fallback] of Object.entries(PICK_DEFAULTS)) {
       const raw = value[key];
       if (typeof raw === "string" && raw !== "" && raw !== fallback) next[key] = raw;
-    };
-    pick("source", "auto");
-    pick("end", "today");
-    pick("start_day_of_week", "auto");
-    pick("scale", "linear");
-    pick("weekday_labels", "auto");
-    pick("future", "dim");
-    pick("tap_action", "none");
+    }
 
-    // Booleans that default to on: only the "off" is worth persisting.
-    for (const key of [
-      "align_weeks",
-      "month_labels",
-      "highlight_today",
-      "legend",
-      "tooltip",
-      "breakdown_summary",
-    ]) {
+    for (const key of BOOLEAN_KEYS) {
       if (value[key] === false) next[key] = false;
     }
     // `breakdown` has no fixed default — it follows the aggregate — so both
     // answers are a real choice and both get written.
     if (typeof value.breakdown === "boolean") next.breakdown = value.breakdown;
-
-    // Not editable here: a map of state text to colour has no ha-form
-    // selector, so it stays as whatever YAML set it to.
-    if (this._config.state_colors) next.state_colors = this._config.state_colors;
 
     const colors = parseColorList(value.palette_colors);
     if (colors) next.palette = colors;

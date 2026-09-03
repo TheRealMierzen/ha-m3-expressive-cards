@@ -1,6 +1,6 @@
 {
   "name": "ha-m3-expressive-cards",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Material 3 Expressive Lovelace cards for Home Assistant",
   "license": "MIT",

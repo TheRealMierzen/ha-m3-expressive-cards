@@ -40,7 +40,24 @@ jobs:
             exit 1
           fi
 
+      # The release notes are the changelog's own section for this version, so
+      # the two can never tell a different story. A tag with no section is a
+      # release nobody wrote notes for — fail rather than publish it bare.
+      - name: Take release notes from CHANGELOG.md
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          awk -v want="## [$tag]" '
+            index($0, want) == 1 { found = 1; next }
+            found && /^## \[/    { exit }
+            found                { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "CHANGELOG.md has no section for [$tag]" >&2
+            exit 1
+          fi
+          cat RELEASE_NOTES.md
+
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*.js
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md

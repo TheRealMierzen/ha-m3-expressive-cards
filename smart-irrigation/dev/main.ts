@@ -3,7 +3,7 @@ import { registerMockHaIcon } from "./mock-ha-icon";
 import "../src/smart-irrigation-card";
 import type { SmartIrrigationCardConfig } from "../src/types";
 import { buildMockHass } from "./mock-hass";
-import { FixtureState, FixtureZone, buildFixtureEntities, localStamp } from "./fixtures";
+import { FixtureState, FixtureZone, buildFixtureEntities, durationFor, localStamp } from "./fixtures";
 
 registerMockHaForm();
 registerMockHaIcon();
@@ -11,7 +11,6 @@ registerMockHaIcon();
 let config: SmartIrrigationCardConfig = {
   type: "custom:m3-smart-irrigation-card",
   title: "Irrigation",
-  next_schedule: "schedule.irrigation_window",
 };
 
 const card = document.createElement("m3-smart-irrigation-card") as HTMLElement & {
@@ -117,6 +116,9 @@ const state: FixtureState = { zones, nextRunIso: hoursAhead(9) };
  * produces can be checked — and with it the rule that "Irrigate all zones"
  * isn't offered when there's only one zone to irrigate. */
 let singleZone = false;
+/** False imitates an integration too old to serve smart_irrigation/info, so
+ * the card's fallback to no next run can be seen. */
+let infoAvailable = !(window as unknown as { __DROP_INFO_WS__?: boolean }).__DROP_INFO_WS__;
 let darkMode = true;
 
 function log(message: string): void {
@@ -127,11 +129,40 @@ function log(message: string): void {
   panel.prepend(line);
 }
 
+/** Stands in for the integration's `smart_irrigation/info` websocket command.
+ * Its reply is derived from the same fixture zones the entities are built
+ * from, so the total duration the card prints beside the next start agrees
+ * with the per-zone durations beside the gauges. `infoAvailable` false
+ * simulates an install whose integration doesn't serve the command, which is
+ * the path where the card must fall back to showing no next run. */
+function irrigationInfoReply(visible: FixtureState): Record<string, unknown> {
+  const running = visible.zones.filter((z) => durationFor(z) > 0);
+  return {
+    next_irrigation_start: state.nextRunIso,
+    next_irrigation_duration: visible.zones.reduce((total, z) => total + durationFor(z), 0),
+    next_irrigation_zones: running.map((z) => z.name),
+    irrigation_reason: running.length
+      ? running.map((z) => `Soil moisture deficit in ${z.name}`).join("; ")
+      : "Scheduled irrigation maintenance",
+    sunrise_time: state.nextRunIso,
+    total_irrigation_duration: visible.zones.reduce((total, z) => total + durationFor(z), 0),
+    irrigation_explanation: "Irrigation scheduled based on soil moisture calculations and weather data.",
+  };
+}
+
 function refreshHass(): void {
   const visible: FixtureState = {
     ...state,
     zones: singleZone ? state.zones.slice(0, 1) : state.zones,
   };
+  const onCallWS = infoAvailable
+    ? async (message: Record<string, unknown>): Promise<unknown> => {
+        log(`callWS ${String(message.type)}`);
+        if (message.type === "smart_irrigation/info") return irrigationInfoReply(visible);
+        return {};
+      }
+    : undefined;
+
   card.hass = editor.hass = buildMockHass(buildFixtureEntities(visible), darkMode, (domain, service, data) => {
     log(`callService ${domain}.${service} ${JSON.stringify(data ?? {})}`);
 
@@ -154,7 +185,7 @@ function refreshHass(): void {
       if (zone && typeof data?.value === "number") zone.multiplier = data.value;
     }
     refreshHass();
-  });
+  }, onCallWS);
 }
 
 function applyTheme(): void {
@@ -201,6 +232,13 @@ document.getElementById("toggle-problem")!.addEventListener("click", () => {
 document.getElementById("toggle-zone-count")!.addEventListener("click", () => {
   singleZone = !singleZone;
   document.getElementById("toggle-zone-count")!.textContent = singleZone ? "Show 3 zones" : "Show 1 zone";
+  refreshHass();
+});
+document.getElementById("toggle-info-ws")!.addEventListener("click", () => {
+  infoAvailable = !infoAvailable;
+  document.getElementById("toggle-info-ws")!.textContent = infoAvailable
+    ? "Drop smart_irrigation/info"
+    : "Restore smart_irrigation/info";
   refreshHass();
 });
 document.getElementById("dark-toggle")!.addEventListener("click", () => {

@@ -1,3 +1,4 @@
+import { IrrigationInfo } from "./info";
 import { HassEntity, HomeAssistant, SmartIrrigationCardConfig } from "./types";
 
 const UNKNOWN_STATES = new Set(["unknown", "unavailable"]);
@@ -558,6 +559,10 @@ export interface CardVals {
   /** The configured schedule entity had no usable time in it, so its raw
    * state is shown instead of a silent dash. */
   nextRunRaw: string | null;
+  /** Total run length the integration expects across every enabled zone, when
+   * it was the one that answered. Null when the next run came from a
+   * configured entity, which knows a time and nothing else. */
+  nextRunDurationText: string | null;
 
   lastRun: Date | null;
   lastRunText: string | null;
@@ -608,6 +613,7 @@ export function computeVals(
   hass: HomeAssistant,
   config: SmartIrrigationCardConfig,
   discovery: Discovery,
+  info: IrrigationInfo | null,
   now: Date
 ): CardVals {
   // An explicit `zones` list selects and orders; without one, every zone
@@ -635,10 +641,23 @@ export function computeVals(
   withLast.sort((a, b) => b.lastIrrigation!.getTime() - a.lastIrrigation!.getTime());
   const mostRecent = withLast[0];
 
-  const { date: nextRun, raw: nextRunRaw } = computeNextRun(
-    config.next_schedule ? hass.states[config.next_schedule] : undefined,
-    now
-  );
+  // The integration's own answer by default, since it accounts for the
+  // selected start trigger, its offset, sunrise vs sunset and any remaining
+  // skip days — none of which a card could work out for itself. A configured
+  // entity overrides it, because somebody who wired one is telling the card
+  // that something other than the integration's triggers decides when
+  // watering happens, and that is not the card's call to overrule.
+  const configured = config.next_schedule ? computeNextRun(hass.states[config.next_schedule], now) : null;
+  const nextRun = configured ? configured.date : (info?.nextStart ?? null);
+  const nextRunRaw = configured ? configured.raw : null;
+  // Only meaningful from the integration, and only when there is a run to
+  // describe. With a single zone that zone's own verdict already carries its
+  // duration, so repeating the total here would say nothing new — see the
+  // header summary for the same reasoning.
+  const nextRunDurationText =
+    !configured && info && info.durationSeconds != null && info.durationSeconds > 0 && zones.length > 1
+      ? formatDuration(info.durationSeconds)
+      : null;
 
   // With one zone — the shape the integration most often ends up in — the
   // verdict beside that zone's gauge already says whether it needs water, so
@@ -676,6 +695,7 @@ export function computeVals(
     nextRunText: formatDayTime(nextRun, now),
     nextRunRelative: formatRelative(nextRun, now),
     nextRunRaw,
+    nextRunDurationText,
 
     lastRun: mostRecent?.lastIrrigation ?? null,
     lastRunText: mostRecent ? formatDayTime(mostRecent.lastIrrigation, now) : null,

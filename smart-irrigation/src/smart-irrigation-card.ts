@@ -3,6 +3,7 @@ import { customElement, state } from "lit/decorators.js";
 import "./smart-irrigation-card-editor";
 import { cardStyles } from "./card.css";
 import { CardVals, Discovery, ZoneVals, clamp, computeVals, discover } from "./compute";
+import { IrrigationInfo, fetchIrrigationInfo } from "./info";
 import { HomeAssistant, SmartIrrigationCardConfig } from "./types";
 
 const DEFAULT_CONFIG: Partial<SmartIrrigationCardConfig> = {
@@ -19,6 +20,14 @@ const TICK_MS = 60_000;
 /** Hold-state key for the all-zones button. Not an entity id, so it can
  * never collide with a zone's own main sensor. */
 const ALL_ZONES_KEY = "__all__";
+
+/** How stale the integration's next-start answer is allowed to get before the
+ * card asks again unprompted. It is recomputed from the start trigger and
+ * sun.sun rather than stored, so it does change without any entity changing —
+ * but it changes on the scale of a sunrise, not a minute. Any calculation the
+ * integration performs moves a zone's duration, which the entity signature
+ * already catches and refetches on. */
+const INFO_MAX_AGE_MS = 5 * 60_000;
 
 /** Only re-renders when one of the entities this card actually reads changes,
  * not on every unrelated hass update elsewhere in the system. Built from the
@@ -65,6 +74,12 @@ export class SmartIrrigationCard extends LitElement {
   @state() private _now = new Date();
   /** The zone whose "hold to irrigate" is currently being held. */
   @state() private _holding?: string;
+  /** The integration's own next-start answer. Null until the first reply, and
+   * null for good on an install whose integration doesn't serve it. */
+  @state() private _info: IrrigationInfo | null = null;
+
+  private _infoFetchedAt = 0;
+  private _infoPending = false;
 
   private _tickTimer?: ReturnType<typeof setInterval>;
   private _holdTimer?: ReturnType<typeof setTimeout>;
@@ -73,7 +88,14 @@ export class SmartIrrigationCard extends LitElement {
     super.connectedCallback();
     this._tickTimer = setInterval(() => {
       this._now = new Date();
+      // Cheap: the age check below almost always declines.
+      void this._refreshInfo(false);
     }, TICK_MS);
+    // Force only when nothing has been fetched yet. A card whose hass setter
+    // already ran before it was appended to the DOM — which is the usual
+    // order — has its answer, and forcing here would fetch the same thing
+    // twice on every mount.
+    void this._refreshInfo(this._infoFetchedAt === 0);
   }
 
   disconnectedCallback(): void {
@@ -97,12 +119,42 @@ export class SmartIrrigationCard extends LitElement {
     this._syncDiscovery(hass);
     const signature = entitySignature(hass, this._config, this._discovery);
     if (signature === this._lastSignature) return;
+    const first = this._lastSignature === "";
     this._lastSignature = signature;
+    // A changed signature means the integration calculated something, which
+    // is exactly when its next start can have moved — so this refetch is
+    // driven by real change rather than by a poll.
+    void this._refreshInfo(first);
     this.requestUpdate();
   }
 
   get hass(): HomeAssistant | undefined {
     return this._hass;
+  }
+
+  /**
+   * Asks the integration for its next start, at most one call in flight.
+   *
+   * Not called from render(): a fetch is a side effect, and render runs for
+   * reasons that have nothing to do with the answer going stale. `force`
+   * skips the age check for the two cases that genuinely need it — the card
+   * mounting, and the first state it ever sees.
+   */
+  private async _refreshInfo(force: boolean): Promise<void> {
+    const hass = this._hass;
+    if (!hass || typeof hass.callWS !== "function") return;
+    if (this._infoPending) return;
+    if (!force && Date.now() - this._infoFetchedAt < INFO_MAX_AGE_MS) return;
+    this._infoPending = true;
+    try {
+      const info = await fetchIrrigationInfo(hass);
+      this._infoFetchedAt = Date.now();
+      // A card detached mid-flight must not resurrect itself with a render.
+      if (!this.isConnected) return;
+      this._info = info;
+    } finally {
+      this._infoPending = false;
+    }
   }
 
   private _syncDiscovery(hass: HomeAssistant): void {
@@ -123,6 +175,7 @@ export class SmartIrrigationCard extends LitElement {
     this._config = { ...DEFAULT_CONFIG, ...config };
     this._lastSignature = "";
     this._discoveryStateCount = -1;
+    this._infoFetchedAt = 0;
     this._open = {};
     this._syncedBodies = new WeakSet();
     this._cancelHold();
@@ -611,7 +664,7 @@ export class SmartIrrigationCard extends LitElement {
       return nothing;
     }
     const c = this._config;
-    const v: CardVals = computeVals(this._hass, c, this._discovery, this._now);
+    const v: CardVals = computeVals(this._hass, c, this._discovery, this._info, this._now);
 
     const cardClass = [v.anyWatering ? "watering" : "", !v.anyWatering && v.needCount > 0 ? "thirsty" : ""]
       .filter(Boolean)
@@ -621,6 +674,8 @@ export class SmartIrrigationCard extends LitElement {
       : v.needCount > 0
         ? "mdi:water-alert"
         : "mdi:sprinkler";
+
+    const hasNextRun = Boolean(v.nextRun || v.nextRunRaw);
 
     // "Irrigate all zones" is only offered when there is more than one zone
     // to irrigate — with a single zone it is the same button as the one in
@@ -668,15 +723,18 @@ export class SmartIrrigationCard extends LitElement {
                 </div>
               `
             : html`
-                ${c.next_schedule || v.lastRun
+                ${hasNextRun || v.lastRun
                   ? html`
                       <div class="block strip">
-                        ${c.next_schedule
+                        ${hasNextRun
                           ? this._renderStat(
                               "mdi:calendar-clock",
                               "Next run",
                               v.nextRunText ?? v.nextRunRaw ?? "—",
-                              v.nextRunRelative,
+                              [v.nextRunRelative, v.nextRunDurationText].filter(Boolean).join(" · ") || null,
+                              // Only a configured entity has a more-info
+                              // dialog to open; the integration's own answer
+                              // has no entity behind it at all.
                               c.next_schedule
                             )
                           : nothing}

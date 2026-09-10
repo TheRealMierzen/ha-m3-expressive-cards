@@ -50,7 +50,7 @@ const TOP_SCHEMA = [{ name: "title", selector: { text: {} } }];
 const LABELS: Record<string, string> = {
   title: "Title",
   zones: "Zones to show",
-  next_schedule: "Next watering run",
+  next_schedule: "Next run override",
   refresh_weather: "Refresh weather",
   calculate_all: "Calculate all zones",
   irrigate_all: "Irrigate all zones",
@@ -63,7 +63,7 @@ const HELPERS: Record<string, string> = {
   zones:
     "Left empty, every zone the card finds, in zone order. Pick the zones' own duration sensors to show only some of them, or to reorder.",
   next_schedule:
-    "Smart Irrigation doesn't schedule anything itself — an automation of yours calls its services — so this is the one thing the card can't find. Point it at a schedule helper (its next event is used), an input_datetime, or any sensor whose state is a timestamp. Left empty, the card simply doesn't show a next run.",
+    "Leave this empty. The card already asks Smart Irrigation for its next start — the same figure its own Info panel shows under “Next irrigation” — which accounts for your selected start trigger, its offset, sunrise or sunset, and any days-between-irrigation still to wait. Set this only if something other than the integration's triggers decides when watering happens: a schedule helper (its next event is used), an input_datetime (time-only is fine), or any sensor whose state is a timestamp.",
   refresh_weather: "Found automatically. Only set these to override what the card picked, or if your entities were renamed.",
   calculate_all: "Found automatically.",
   irrigate_all: "Found automatically. Only offered on the card when there's more than one zone — with one zone it's the same button as that zone's own.",
@@ -89,12 +89,12 @@ const DISPLAY_FIELDS = ["show_details", "deficit_scale", "hold_ms"] as const;
 /**
  * Grouped by where the values come from, not by where they land on the card.
  *
- * Almost nothing here needs filling in: the card finds the integration's
- * zones and service buttons itself, so the form's real job is to *show that
- * it did* — hence the Zones section's readout, which lists what was found and
- * what each zone's bucket currently reads. The one genuinely manual field is
- * the next run, because the integration has no such entity to find. The form
- * covers the whole config; nothing here is YAML-only.
+ * Almost nothing here needs filling in — including the next run, which the
+ * card gets from the integration over the websocket command its own Info
+ * panel uses. So the form's real job is to *show that it worked*: hence the
+ * Zones section's readout, which lists what was found and what each zone's
+ * bucket currently reads. Every field is an override rather than a
+ * requirement. The form covers the whole config; nothing here is YAML-only.
  */
 const SECTIONS: Section[] = [
   {
@@ -134,10 +134,10 @@ const SECTIONS: Section[] = [
   {
     key: "schedule",
     title: "Schedule",
-    hint: "The only field the card can't fill in for itself.",
+    hint: "The next start comes from the integration itself, over the websocket command its own Info panel uses. There is no entity for it — the integration never made one — so there is nothing to pick here unless you are deliberately overriding it.",
     fields: SCHEDULE_FIELDS,
     schema: [{ name: "next_schedule", selector: anyEntity }],
-    summary: (config) => (config.next_schedule ? "next run wired" : "no next run shown"),
+    summary: (config) => (config.next_schedule ? "overridden by an entity" : "from the integration"),
   },
   {
     key: "buttons",

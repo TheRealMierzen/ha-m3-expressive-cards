@@ -7,9 +7,10 @@ in on it: **how do the buckets look, when does it next run, and when did it
 last run** — and keeps everything else behind a per-zone collapse.
 
 The integration exposes around fifteen entities per zone. This card asks for
-none of them: it finds the zones itself and reads the whole model off each
-zone's own duration sensor. `type: custom:m3-smart-irrigation-card` with no
-other keys is a working card.
+none of them: it finds the zones itself, reads the whole model off each zone's
+own duration sensor, and gets the next start from the integration directly.
+`type: custom:m3-smart-irrigation-card` with no other keys is a complete card
+— there is nothing to wire.
 
 ## The bucket gauge
 
@@ -83,9 +84,16 @@ npm run dev
 
 Opens a dev harness at `http://localhost:5182` with three mock zones — one at
 capacity, one dry, one holding banked rain — and buttons to walk the whole
-gauge scale, toggle watering, cycle a zone's mode, raise a problem, and drop
-to a single zone. Dark/light toggle and a live config dump beside the real
-visual editor.
+gauge scale, toggle watering, cycle a zone's mode, raise a problem, drop to a
+single zone, and **drop the `smart_irrigation/info` command** so the
+no-next-run fallback can be seen. Dark/light toggle and a live config dump
+beside the real visual editor.
+
+`dev/mock-hass.ts` diverges from the copy the other cards share, for the same
+reason `activity-heatmap`'s does: it has to answer a websocket command. Its
+reply is derived from the same fixture zones the entities are built from, so
+the total duration printed beside the next start agrees with the per-zone
+durations beside the gauges.
 
 The harness derives each zone's run duration from that zone's own bucket,
 size and throughput rather than carrying a separately-authored number: the
@@ -118,7 +126,7 @@ Every key is optional.
 |---|---|---|
 | `title` | string | Card header text (default `"Irrigation"`) |
 | `zones` | list of entity ids | The zones' own duration sensors, in display order. Omitted: every zone found, ordered by zone id |
-| `next_schedule` | entity id | Where the next run lives — see below |
+| `next_schedule` | entity id | **Override** for where the next run comes from — see below. Leave empty; the integration answers by default |
 | `refresh_weather` | entity id | `button.*` override; discovered otherwise |
 | `calculate_all` | entity id | `button.*` override; discovered otherwise |
 | `irrigate_all` | entity id | `button.*` override; discovered otherwise. Only rendered when more than one zone is shown — with one zone it is the same button as that zone's own |
@@ -128,31 +136,45 @@ Every key is optional.
 
 ```yaml
 type: custom:m3-smart-irrigation-card
-title: Irrigation
-next_schedule: schedule.irrigation_window
 ```
 
 The visual editor (⋮ → **Edit Card**) covers every key above. Its Zones
 section reads back each zone's current bucket, which is the proof that
 discovery found what you expected.
 
-### `next_schedule` is the one field the card can't fill in
+### Where the next run comes from
 
-**Smart Irrigation does not schedule anything.** It calculates durations and
-exposes services; an automation of yours decides when to call them. There is
-therefore no next-run entity to discover, and this is the only genuinely
-manual field. Point it at whatever actually holds your schedule:
+**The integration knows, but it never made an entity for it.** Its next start
+is computed on demand and served over the `smart_irrigation/info` websocket
+command — the same one feeding **Info → Next irrigation → Next start** in the
+integration's own panel. The card calls it directly, so the time it shows is
+the integration's own answer rather than a reconstruction: the *selected*
+start trigger rather than an assumed sunrise, that trigger's offset, sunset
+where sunset is what was chosen, and any remaining days-between-irrigation
+skip days already applied.
+
+That means there is nothing to configure, and no template sensor to write.
+The same reply also carries the total run length across every enabled zone,
+which the tile shows beside the time when the card is drawing more than one
+zone (with one zone, that zone's own verdict already says it).
+
+`next_schedule` exists for the case where the integration's triggers are
+*not* what decides when watering happens — an automation of yours calls the
+services on its own timetable, say. Set it and it wins; it takes:
 
 - a `schedule.*` helper — its `next_event` attribute is used;
 - a **time-only** `input_datetime.*` — `"04:00:00"` is a daily schedule, so it
   resolves to the next occurrence of that time, today if it is still ahead
   and tomorrow otherwise;
 - an `input_datetime.*` with a date, or any sensor whose state is a full
-  timestamp (a template sensor over your automation's next trigger works).
+  timestamp.
 
-Left empty, the card simply doesn't show a next run. Pointed at something
-that isn't a time in any of those shapes, it shows that entity's raw state
-rather than a silent dash, so a mis-wired entity is visible.
+Pointed at something that isn't a time in any of those shapes, the tile shows
+that entity's raw state rather than a silent dash, so a mis-wired entity is
+visible. And on an install whose integration doesn't serve the command — an
+older version, or a card rendered without a websocket connection — the tile
+is simply not drawn, and "Last run" takes the full width. That is a fallback,
+not an error state: nothing is logged and nothing goes red.
 
 ## What's on the card
 
@@ -227,6 +249,17 @@ it is in most of the time and makes a fill mean something.
   sensor stayed at `0` — which is most of what this card draws.
 - **A minute ticker**, only for the relative ages. Everything else arrives
   with its own state update.
+- **The next start is fetched, not subscribed.** It is refetched whenever the
+  entity signature changes — which is exactly when the integration has
+  calculated something and the answer can have moved — and otherwise at most
+  every five minutes, since it changes on the scale of a sunrise. Never from
+  `render()`, which runs for reasons that have nothing to do with the answer
+  going stale; one call in flight at a time; and a card detached mid-flight
+  doesn't resurrect itself with a render.
+- **`irrigation_explanation` is deliberately ignored.** It is the one field in
+  that reply that arrives as markup (`<br/>`-separated), nothing on this card
+  renders unsanitised HTML, and the per-zone figures say the same thing in
+  numbers.
 - **Hold to irrigate** is the only control with a physical consequence, so a
   tap does nothing: the button fills over `hold_ms` and fires at the end. It
   captures the pointer (a finger sliding off never delivers its `pointerup`),
@@ -267,6 +300,7 @@ src/
   smart-irrigation-card.ts        # the <m3-smart-irrigation-card> element
   smart-irrigation-card-editor.ts # visual editor (ha-form), covers every key
   compute.ts                      # discovery + pure value computation
+  info.ts                         # the smart_irrigation/info websocket call
   m3.css.ts                       # M3E tokens (colour/shape/motion/type)
   card.css.ts                     # component styles, all built on those tokens
   editor.css.ts                   # shared editor chrome, copied verbatim

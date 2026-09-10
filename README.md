@@ -41,7 +41,7 @@ if you would rather load only the one you use.
 | **PC Overview** | `custom:m3-pc-overview-card` | A desktop's power, performance and system overview |
 | **Quick Toggles** | `custom:m3-quick-toggles-card` | A row of icon-only toggle medallions with condition-driven icons, colours and animations |
 | **Schedule Timeline** | `custom:m3-schedule-timeline-card` | Native `schedule.*` helpers drawn as a single timeline |
-| **Smart Irrigation** | `custom:m3-smart-irrigation-card` | [Smart Irrigation](https://github.com/altmenorg/HAsmartirrigation) zones as bucket gauges, with the watering verdict, next run and last run |
+| **Smart Irrigation** | `custom:m3-smart-irrigation-card` | [Smart Irrigation](https://github.com/altmenorg/HAsmartirrigation) zones as bucket gauges, with the watering verdict, next run and last run — zero config, it discovers everything |
 
 Every card has a visual editor (⋮ → **Edit Card**) covering its common
 options, and a README in its own folder documenting the full config surface.

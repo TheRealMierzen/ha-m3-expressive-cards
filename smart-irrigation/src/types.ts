@@ -71,11 +71,23 @@ export interface HassEntity {
   };
 }
 
-/** A minimal slice of Home Assistant's Hass type, just what this card reads. */
+/**
+ * A minimal slice of Home Assistant's Hass type, just what this card reads.
+ *
+ * `callWS` is here for the same class of reason `activity-heatmap` has it:
+ * the thing the card wants isn't in `hass.states`. Smart Irrigation's next
+ * start is computed on demand from the selected start trigger, `sun.sun` and
+ * the days-between-irrigation counter, and served over the websocket
+ * connection to the integration's own Info panel — it was never given an
+ * entity. Optional, and every call site guards on it, because an older
+ * install (or a card rendered somewhere without a connection) simply doesn't
+ * get a next run.
+ */
 export interface HomeAssistant {
   states: Record<string, HassEntity>;
   themes?: { darkMode?: boolean };
   callService(domain: string, service: string, serviceData?: Record<string, unknown>): void;
+  callWS?<T = unknown>(message: Record<string, unknown>): Promise<T>;
 }
 
 export interface SmartIrrigationCardConfig {
@@ -87,11 +99,20 @@ export interface SmartIrrigationCardConfig {
    * — which is what makes it work with no configuration at all. */
   zones?: string[];
 
-  /** When the next watering run is due. The integration doesn't schedule
-   * anything itself (an automation of yours calls its services), so there is
-   * no next-run entity to discover — point this at whatever actually holds
-   * the schedule: a `schedule.*` helper (its `next_event` is used), an
-   * `input_datetime.*`, or any sensor whose state is a timestamp. */
+  /** Overrides where the next run comes from.
+   *
+   * By default the card asks the integration, over the same
+   * `smart_irrigation/info` websocket command its own Info panel uses, so
+   * the next start it shows is the integration's own answer — the selected
+   * start trigger, its offset, sunrise or sunset, and any remaining
+   * days-between-irrigation skip days all included. There is no entity for
+   * this; the integration never made one.
+   *
+   * Set this only when something *other* than the integration's triggers
+   * decides when watering happens — your own automation, say. It takes a
+   * `schedule.*` helper (its `next_event` is used), an `input_datetime.*`
+   * (time-only is resolved to its next occurrence), or any sensor whose
+   * state is a timestamp. */
   next_schedule?: string;
 
   /** The integration's three service buttons. Discovered when left out. */

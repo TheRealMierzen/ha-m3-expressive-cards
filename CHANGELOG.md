@@ -10,6 +10,30 @@ not what changed in the source.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-10
+
+### Changed
+
+- **Smart Irrigation Card: the next run now comes from the integration
+  itself, so there is nothing left to configure.** Smart Irrigation computes
+  its next start on demand — from the start trigger you actually selected, its
+  offset, sunrise or sunset, and any days-between-irrigation still to wait —
+  and serves it over the same `smart_irrigation/info` websocket command that
+  feeds **Info → Next irrigation → Next start** in its own panel. It never
+  exposed an entity for it, which is why 0.3.0 asked you to point
+  `next_schedule` at a schedule helper or a template sensor. The card now
+  asks the integration directly and shows its answer, along with the total
+  run length across every enabled zone.
+
+  `next_schedule` is still there, and now means what it should: an override
+  for when something other than the integration's triggers decides watering
+  time. If you set it in 0.3.0 nothing changes — a configured entity still
+  wins. Remove it and the card will use the integration's own figure.
+
+  On an install whose integration doesn't serve the command, the next-run
+  tile simply isn't drawn and "Last run" takes the full width. That is a
+  fallback, not an error.
+
 ## [0.3.0] - 2026-09-10
 
 ### Added
@@ -89,7 +113,8 @@ not what changed in the source.
 - A visual editor for every card, covering its common options.
 - MIT license.
 
-[Unreleased]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.1.0...v0.1.1

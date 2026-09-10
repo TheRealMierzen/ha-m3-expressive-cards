@@ -1,11 +1,11 @@
 # M3 Expressive Cards for Home Assistant
 
-Nine custom Lovelace cards built on Google's
+Ten custom Lovelace cards built on Google's
 [Material 3 Expressive](M3-EXPRESSIVE.md) design language — one shared token
-system, one motion vocabulary, so they read as a set rather than nine
+system, one motion vocabulary, so they read as a set rather than ten
 unrelated cards. Lit + TypeScript, no runtime dependencies.
 
-Installing this repository gives you all nine cards from a single resource.
+Installing this repository gives you all ten cards from a single resource.
 
 ## Installation
 
@@ -41,6 +41,7 @@ if you would rather load only the one you use.
 | **PC Overview** | `custom:m3-pc-overview-card` | A desktop's power, performance and system overview |
 | **Quick Toggles** | `custom:m3-quick-toggles-card` | A row of icon-only toggle medallions with condition-driven icons, colours and animations |
 | **Schedule Timeline** | `custom:m3-schedule-timeline-card` | Native `schedule.*` helpers drawn as a single timeline |
+| **Smart Irrigation** | `custom:m3-smart-irrigation-card` | [Smart Irrigation](https://github.com/altmenorg/HAsmartirrigation) zones as bucket gauges, with the watering verdict, next run and last run |
 
 Every card has a visual editor (⋮ → **Edit Card**) covering its common
 options, and a README in its own folder documenting the full config surface.
@@ -60,11 +61,12 @@ required entities. For YAML, see the per-card README:
 [irrigation-control](irrigation-control/README.md) ·
 [pc-control](pc-control/README.md) ·
 [quick-toggles](quick-toggles/README.md) ·
-[schedule-timeline-card](schedule-timeline-card/README.md)
+[schedule-timeline-card](schedule-timeline-card/README.md) ·
+[smart-irrigation](smart-irrigation/README.md)
 
 ## Design
 
-All nine cards share a single Material 3 Expressive token contract —
+All ten cards share a single Material 3 Expressive token contract —
 generated tonal palettes, spring-based motion, container-query layout.
 [M3-EXPRESSIVE.md](M3-EXPRESSIVE.md) documents the token system, the
 component recipes, and the pitfalls worth not rediscovering.

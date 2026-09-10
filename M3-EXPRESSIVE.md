@@ -21,6 +21,7 @@ that cost real time to find. Don't restate CONTRIBUTING.md rules here; link to t
 | `activity-heatmap` | **Migrated** | Chrome on M3, data colour deliberately outside it. Tooltip on inverse-surface. |
 | `gym-tracker` | **Migrated** | House-neutral surfaces under an unrelated accent hue. Extended semantic colour as an ordered scale (success/warning/error) aliased behind one host attribute; determinate circular progress with an active/gap/track split. |
 | `body-stats` | **Migrated** | Semantic colour as a *fill*, not a mark: an SVG figure whose regions carry the three-step scale, with a theme-relative ink edge. |
+| `smart-irrigation` | **Migrated** | A *diverging* gauge with a marked zero: one bespoke SVG-free vessel whose two directions carry an extended semantic role (`dry`) against the water accent, deliberately at 1.00:1 luminance because direction, texture and text carry the distinction instead of hue. Wave mask reused at a second scale as a water surface. Per-item collapsibles keyed by entity id. |
 
 Copy from whichever migrated card is closer in shape: one accent driven by
 state, or many accents chosen in config.

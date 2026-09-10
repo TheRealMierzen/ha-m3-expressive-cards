@@ -1,7 +1,7 @@
 /* The combined bundle: every card in this repo, registered from one file.
  *
  * HACS auto-registers exactly one Lovelace resource per repository, so this
- * is the file it points at — installing the repo makes all nine cards
+ * is the file it points at — installing the repo makes all ten cards
  * available with no manual resource entries. Each card's own single-file
  * build is published alongside it for anyone who wants just one.
  *
@@ -19,3 +19,4 @@ import "../../irrigation-control/src/irrigation-schedule-card";
 import "../../pc-control/src/pc-overview-card";
 import "../../quick-toggles/src/quick-toggles-card";
 import "../../schedule-timeline-card/src/schedule-timeline-card";
+import "../../smart-irrigation/src/smart-irrigation-card";

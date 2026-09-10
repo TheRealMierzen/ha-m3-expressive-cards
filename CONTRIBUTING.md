@@ -2,7 +2,7 @@
 
 Each subfolder (`garage-control`, `pc-control`, `irrigation-control`,
 `geyser-control`, `schedule-timeline-card`, `quick-toggles`,
-`activity-heatmap`, ...) is an independent custom
+`activity-heatmap`, `smart-irrigation`, ...) is an independent custom
 Lovelace card: Lit + TypeScript, bundled with Vite into a single-file
 `dist/<name>.js` that gets copied into HA's `www/` and registered as a
 dashboard resource.
@@ -46,7 +46,7 @@ vite.config.build.ts      # `npm run build` — single-file dist bundle
 ```
 
 Run `npm install` **at the repository root**, not inside a card folder —
-the workspace resolves all nine cards in one pass (a per-card install used
+the workspace resolves all ten cards in one pass (a per-card install used
 to hang here; the workspace install does not).
 
 From the root: `npm run build` builds every card plus the combined bundle
@@ -54,8 +54,8 @@ and assembles `dist/`; `npm run typecheck` checks all workspaces as one TS
 program. Inside a card folder, `npm run dev` / `build` / `typecheck` still
 work on that card alone.
 
-Because `npm run typecheck` at the root compiles all nine cards together,
-any `declare global` block must be **identical** across cards — nine
+Because `npm run typecheck` at the root compiles all ten cards together,
+any `declare global` block must be **identical** across cards — ten
 differing `Window.customCards` declarations is a compile error even though
 each card is fine in isolation.
 
@@ -271,4 +271,4 @@ ships nowhere:
    registers it.
 3. `scripts/assemble-dist.mjs` — add the folder and its output filename to
    `OUTPUTS`, so a missing build fails the release instead of silently
-   shipping eight cards.
+   shipping nine cards.

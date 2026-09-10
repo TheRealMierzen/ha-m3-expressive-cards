@@ -2,8 +2,8 @@
 
 Monorepo of independent Lovelace cards (`garage-control`, `pc-control`,
 `irrigation-control`, `geyser-control`, `schedule-timeline-card`,
-`quick-toggles`, `activity-heatmap`, …), each Lit + TypeScript, bundled with
-Vite into `dist/<name>.js`.
+`quick-toggles`, `activity-heatmap`, `smart-irrigation`, …), each Lit +
+TypeScript, bundled with Vite into `dist/<name>.js`.
 
 **Read [CONTRIBUTING.md](CONTRIBUTING.md) first** — it is the source of truth for layout,
 non-negotiables, collapsibles, container queries, testing, and deploy. Do not
@@ -34,7 +34,7 @@ npm run build        # writes <card>/dist/<name>.js
 npm run typecheck    # tsc --noEmit
 ```
 
-Root `typecheck` compiles all nine cards together, so `declare global`
+Root `typecheck` compiles all ten cards together, so `declare global`
 blocks must be identical across cards — see CONTRIBUTING.md.
 
 ## Reference cards
@@ -49,3 +49,8 @@ blocks must be identical across cards — see CONTRIBUTING.md.
   configs, and start from `geyser-control`'s `m3.css.ts`
 - **Recorder/statistics history over `hass.callWS`** — see `activity-heatmap`
   (`src/data.ts`), including why `counter.*` has no long-term statistics
+- **Discovering an integration's entities instead of configuring them** —
+  `smart-irrigation` (`src/compute.ts`'s `discover()`): groups by the zone id
+  the entities carry in their own attributes, classifies by `device_class`,
+  and falls back to name matching only for buttons, which carry nothing
+  identifying. Its editor's job is then to *show* what was found.

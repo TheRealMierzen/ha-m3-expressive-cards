@@ -10,6 +10,29 @@ not what changed in the source.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-10
+
+### Added
+
+- **Smart Irrigation Card** (`custom:m3-smart-irrigation-card`) — a card for
+  the [Smart Irrigation](https://github.com/altmenorg/HAsmartirrigation)
+  integration, built around its bucket model. Each zone gets a vessel with
+  field capacity marked across it: banked rain fills upward as water, a
+  soil-moisture deficit hangs downward into a hatched sump, and the verdict
+  beside it says whether the zone needs water, how long the run would be and
+  roughly how many litres that is. Next run and last run sit above the zones;
+  everything else — ET figures, drainage, water used, weather-data trust, the
+  multiplier, and the calculate/reset/irrigate actions — is behind a per-zone
+  collapse.
+
+  It needs no configuration: the card finds the integration's zones and
+  service buttons itself, by the zone id the entities carry rather than by
+  their names, so renaming an entity in HA doesn't hide it. The one field
+  worth setting is `next_schedule`, because the integration doesn't schedule
+  anything — an automation of yours does — so there is no next-run entity to
+  find. Point it at a `schedule.*` helper, an `input_datetime`, or any
+  timestamp sensor.
+
 ## [0.2.0] - 2026-09-03
 
 ### Changed
@@ -66,7 +89,8 @@ not what changed in the source.
 - A visual editor for every card, covering its common options.
 - MIT license.
 
-[Unreleased]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/releases/tag/v0.1.0

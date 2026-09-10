@@ -13,7 +13,7 @@ export default defineConfig({
     rollupOptions: {
       // Same contract as the per-card builds: everything (Lit included)
       // inlined, so the published file has no runtime dependencies. Lit is
-      // shared across all nine cards here rather than duplicated nine times,
+      // shared across all ten cards here rather than duplicated ten times,
       // which is why the bundle is far smaller than the sum of its parts.
       external: [],
       output: { inlineDynamicImports: true },

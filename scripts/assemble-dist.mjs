@@ -25,6 +25,7 @@ const OUTPUTS = {
   "pc-control": "pc-overview-card.js",
   "quick-toggles": "quick-toggles-card.js",
   "schedule-timeline-card": "schedule-timeline-card.js",
+  "smart-irrigation": "smart-irrigation-card.js",
 };
 
 await rm(outDir, { recursive: true, force: true });

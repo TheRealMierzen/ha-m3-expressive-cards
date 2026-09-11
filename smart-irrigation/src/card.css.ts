@@ -468,11 +468,25 @@ export const cardStyles = css`
 
   /* A zone's bucket, drawn as the bucket it is called.
 
-     The vessel is one continuous scale with the zero line — field capacity —
-     across it, and the two bands either side are in proportion to the mm they
-     represent, so a millimetre is the same height above and below the line.
-     Above it, banked rain fills upward toward maximum_bucket as water. Below
-     it, a moisture deficit hangs downward into a shallow hatched sump.
+     The zero line across the vessel is field capacity. Above it, banked rain
+     fills upward toward maximum_bucket as water. Below it, a moisture deficit
+     hangs downward into a hatched sump toward the marked watering point — the
+     deficit at which this zone gets water.
+
+     The two bands are *not* one continuous scale. They measure different
+     things against different references, and giving them a shared one hands
+     the vessel to the surplus: on a typical zone (24mm max, watering at 6mm)
+     the entire dry-down gets a fifth of the height, which is backwards — the
+     surplus band is empty for most of a zone's life and the deficit band is
+     where every decision is made. The split is fixed instead (see
+     ZERO_PERCENT in compute.ts), each band is scaled to its own end, and both
+     ends are labelled on the axis so nothing is left implied. It also makes
+     every zone's vessel the same shape, so a column of zones reads as
+     fractions of their own dry-downs rather than as unrelated scales.
+
+     The deficit band runs a quarter past the watering point, so the mark has
+     somewhere to sit that is not the floor, and a zone that is overdue looks
+     different from one that has just come due.
 
      An empty vessel is therefore the *normal* resting state, not an alarm:
      the bucket sits at 0 for as long as the weather and the last run leave it
@@ -506,8 +520,12 @@ export const cardStyles = css`
     transform: translateY(-50%);
     color: var(--m3-on-surface);
   }
-  .tick.bottom {
-    bottom: -2px;
+  /* Aligned with the marked watering point rather than pinned to the vessel's
+     floor: the mark is the number worth reading, the floor is only headroom
+     past it. */
+  .tick.mark {
+    top: var(--mark);
+    transform: translateY(-50%);
   }
 
   .gauge {
@@ -551,9 +569,16 @@ export const cardStyles = css`
      vessel and competes with the deficit fill drawn on top of it (1.86:1 /
      1.45:1 between them); --m3-outline-variant instead is 1.31:1 / 1.32:1 and
      too faint to read as a marked zone at all. Halving the opaque token lands
-     the composite between the two. The reduction is on opacity rather than
-     in the colour because M3 role tokens are opaque — see M3-EXPRESSIVE.md
-     pitfall 12. */
+     the composite between the two, at 2.02:1 / 1.75:1 — a texture rather than
+     an object, which is what a background band should be. The reduction is on
+     opacity rather than in the colour because M3 role tokens are opaque — see
+     M3-EXPRESSIVE.md pitfall 12.
+
+     The gaps are wider than the measured version's 5px because this band is
+     now three times taller: the same stripe at the same pitch over 62% of the
+     vessel reads as a solid fill, which is exactly what the band must not
+     look like when it is empty. Pitch, not tone — the measured contrast above
+     is unaffected. */
   .sump {
     position: absolute;
     left: 0;
@@ -564,7 +589,7 @@ export const cardStyles = css`
     background: repeating-linear-gradient(
       135deg,
       var(--m3-outline) 0 2px,
-      transparent 2px 5px
+      transparent 2px 7px
     );
   }
 
@@ -647,6 +672,47 @@ export const cardStyles = css`
     }
   }
 
+  /* The watering point, and the whole reason the deficit band is scaled the
+     way it is: the fill reaching this line *is* the "Needs water" verdict.
+     Position carries that meaning, which is why the fill keeps one colour on
+     both sides of it — a second, quieter dry tone would have to be a reduced
+     opacity of the same role (--m3-dry-container is 1.32:1 dark / 1.00:1
+     light against the vessel, i.e. invisible), and every alpha that stayed
+     distinguishable from the full-strength fill fell under the 3:1 a
+     graphical object needs.
+
+     Two variants, because the line is read against two different backgrounds
+     and has to claim two different things:
+
+     - .submerged swaps the dash to on-dry, because once the deficit covers
+       the mark the line is drawn on water, not on the vessel. Measured 9.50:1
+       (dark) / 13.34:1 (light) on the vessel, 7.70:1 / 6.45:1 on the fill.
+     - .estimated is a finer, fainter dotted pattern for a watering point this
+       card worked out rather than one the integration told it. The zone's own
+       irrigation_threshold is a fact about when water will be delivered; a
+       quarter of maximum_bucket is only this card's idea of when a deficit is
+       worth a soak, and the two must not look alike. */
+  .water-mark {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: var(--mark);
+    height: 2px;
+    margin-top: -1px;
+    z-index: 2;
+    background: repeating-linear-gradient(90deg, var(--m3-on-surface) 0 4px, transparent 4px 8px);
+  }
+  .water-mark.submerged {
+    background: repeating-linear-gradient(90deg, var(--m3-on-dry) 0 4px, transparent 4px 8px);
+  }
+  .water-mark.estimated {
+    opacity: 0.75;
+    background: repeating-linear-gradient(90deg, var(--m3-on-surface) 0 2px, transparent 2px 5px);
+  }
+  .water-mark.estimated.submerged {
+    background: repeating-linear-gradient(90deg, var(--m3-on-dry) 0 2px, transparent 2px 5px);
+  }
+
   /* The deficit has run past the drawn scale, so the sump is full and can't
      say how much further. Drawn in on-dry over the full dry fill. */
   .beyond {
@@ -696,6 +762,18 @@ export const cardStyles = css`
   .verdict.watering {
     background: var(--m3-primary-container);
     color: var(--m3-on-primary-container);
+  }
+  /* Drying is not an event. The whole point of separating it from
+     "needs water" is that a zone spends nearly all its life in it, so it gets
+     the same unfilled treatment as "no water needed" and only the icon
+     carries the dry role. Filling this block would put the card back in a
+     permanent alarm state, which is the bug it exists to fix. */
+  .verdict.drying {
+    background: transparent;
+    padding: 0;
+  }
+  .verdict.drying .verdict-icon {
+    color: var(--m3-dry);
   }
   .verdict.ok {
     background: transparent;
@@ -1226,11 +1304,12 @@ export const cardStyles = css`
     .zone-body {
       gap: 10px;
     }
-    /* The axis goes entirely rather than shrinking: its numbers are the one
-       part of the gauge that has a written-out equivalent in the details
-       ("Bucket -3.4 mm of 20.0 mm"), and the zero line inside the vessel
-       still marks field capacity. That returns 26px to the verdict, which
-       has no equivalent anywhere. */
+    /* The axis goes entirely rather than shrinking: every number on it has a
+       written-out equivalent in the details ("Bucket", "Max bucket", and
+       "Waters at", which carries the marked line's depth and how far through
+       it the zone is), and the zero line and the mark inside the vessel still
+       show where both sit. That returns 26px to the verdict, which has no
+       equivalent anywhere. */
     .gauge-axis {
       display: none;
     }

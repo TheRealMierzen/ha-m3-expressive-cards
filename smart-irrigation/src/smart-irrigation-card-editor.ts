@@ -40,9 +40,21 @@ const anyEntity = { entity: {} };
 const buttonEntity = { entity: { filter: { domain: "button" } } };
 
 /** Escape hatch for a form field that isn't simply the config key of the same
- * name. Empty here: every field maps 1:1. */
-const FORM_READ: Record<string, (config: Record<string, unknown>) => unknown> = {};
-const FORM_WRITE: Record<string, (raw: unknown, next: Record<string, unknown>) => void> = {};
+ * name. One entry: `watering_point` was called `deficit_scale` when it only
+ * set how deep the gauge's sump was drawn, before it became the line the
+ * "Needs water" verdict is taken at. The card still reads the old key, so an
+ * existing config keeps working untouched; the form shows whichever is set
+ * and writes the new one, so editing a card is what migrates it. */
+const FORM_READ: Record<string, (config: Record<string, unknown>) => unknown> = {
+  watering_point: (config) => config.watering_point ?? config.deficit_scale,
+};
+const FORM_WRITE: Record<string, (raw: unknown, next: Record<string, unknown>) => void> = {
+  watering_point: (raw, next) => {
+    delete next.deficit_scale;
+    if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) next.watering_point = raw;
+    else delete next.watering_point;
+  },
+};
 
 const TOP_FIELDS = ["title"] as const;
 const TOP_SCHEMA = [{ name: "title", selector: { text: {} } }];
@@ -55,7 +67,7 @@ const LABELS: Record<string, string> = {
   calculate_all: "Calculate all zones",
   irrigate_all: "Irrigate all zones",
   show_details: "Per-zone details",
-  deficit_scale: "Sump depth (mm)",
+  watering_point: "Watering point",
   hold_ms: "Hold time (ms)",
 };
 
@@ -69,8 +81,8 @@ const HELPERS: Record<string, string> = {
   irrigate_all: "Found automatically. Only offered on the card when there's more than one zone — with one zone it's the same button as that zone's own.",
   show_details:
     "The expandable section under each zone: ET figures, drainage, water used, the multiplier, and the calculate/reset/irrigate actions.",
-  deficit_scale:
-    "How many mm of deficit fill the band below the gauge's zero line. Left empty, a quarter of each zone's own maximum bucket, so the scale suits the zone.",
+  watering_point:
+    "How far a zone is allowed to dry out, in the depth unit your zones report (mm, or inches on an imperial install), before the card calls it “Needs water”. It is also the line marked across the gauge. Left empty, each zone's own allowed depletion from Smart Irrigation — and for zones that have none set there (the default), a quarter of that zone's maximum bucket.",
   hold_ms: "How long “Hold to irrigate” has to be held. Set 0 to fire on a plain tap instead.",
 };
 
@@ -84,7 +96,7 @@ function wiredSummary(config: SmartIrrigationCardConfig, fields: readonly string
 const ZONE_FIELDS = ["zones"] as const;
 const SCHEDULE_FIELDS = ["next_schedule"] as const;
 const BUTTON_FIELDS = ["refresh_weather", "calculate_all", "irrigate_all"] as const;
-const DISPLAY_FIELDS = ["show_details", "deficit_scale", "hold_ms"] as const;
+const DISPLAY_FIELDS = ["show_details", "watering_point", "hold_ms"] as const;
 
 /**
  * Grouped by where the values come from, not by where they land on the card.
@@ -125,7 +137,10 @@ const SECTIONS: Section[] = [
           id,
           value:
             typeof bucket === "number"
-              ? `bucket ${bucket.toFixed(1)}${max !== undefined ? ` of ${max}` : ""} ${unit}`
+              ? // A real minus sign, as everywhere the card prints a depth.
+                `bucket ${bucket.toFixed(1).replace("-", "\u2212")}${
+                  max !== undefined ? ` of ${max}` : ""
+                } ${unit}`
               : undefined,
         };
       });
@@ -169,13 +184,15 @@ const SECTIONS: Section[] = [
     fields: DISPLAY_FIELDS,
     schema: [
       { name: "show_details", selector: { boolean: {} } },
-      { name: "deficit_scale", selector: { number: { min: 0.5, max: 100, step: 0.5, mode: "box" } } },
+      { name: "watering_point", selector: { number: { min: 0.5, max: 100, step: 0.5, mode: "box" } } },
       { name: "hold_ms", selector: { number: { min: 0, max: 3000, step: 50, mode: "box" } } },
     ],
     summary: (config) =>
       [
         config.show_details === false ? "details off" : "details on",
-        config.deficit_scale ? `sump ${config.deficit_scale}mm` : "sump auto",
+        (config.watering_point ?? config.deficit_scale)
+          ? `waters at ${config.watering_point ?? config.deficit_scale}`
+          : "watering point auto",
         `hold ${config.hold_ms ?? DEFAULTS.hold_ms}ms`,
       ].join(" · "),
   },

@@ -41,6 +41,13 @@ export interface ZoneEntities {
   currentDrainage?: string;
   lastIrrigation?: string;
   waterUsed?: string;
+  /** binary_sensor.*_irrigation_needed. Found, and deliberately *not* read
+   * for the verdict: the integration computes it as a bare `bucket < 0`,
+   * ignoring the zone's own allowed depletion, so it turns on at the first
+   * calculation after a run and stays on for the whole dry-down. Reading it
+   * is what made this card announce "Needs water" minutes after watering.
+   * The verdict comes from the bucket against the watering point instead;
+   * see computeZone. */
   irrigationNeeded?: string;
   wateringNow?: string;
   problem?: string;
@@ -221,14 +228,23 @@ export function formatUnit(unit: unknown): string {
     .replace(/<[^>]*>/g, "");
 }
 
-/** mm values, at the one decimal the bucket model is meaningful to. A bucket
- * of 0.001mm is 0.0 and should read that way — it is field capacity. */
-function formatMm(value: number | null): string | null {
+/** Depth values, at the one decimal the bucket model is meaningful to. A
+ * bucket of 0.001mm is 0.0 and should read that way — it is field capacity.
+ *
+ * The unit comes from the zone rather than being assumed: the integration
+ * reports every depth in the HA install's own unit system, so an imperial
+ * install's bucket is in inches and printing "mm" after it would be a wrong
+ * reading rather than a cosmetic slip. */
+function formatDepth(value: number | null, unit: string): string | null {
   if (value == null) return null;
   // -0.04 would otherwise print as "-0.0 mm", which reads as a deficit that
   // isn't there.
   const rounded = Math.round(value * 10) / 10;
-  return `${(rounded === 0 ? 0 : rounded).toFixed(1)} mm`;
+  // A real minus sign, not a hyphen: these numbers sit beside the gauge axis,
+  // which draws its own negative tick with one, and two different dashes for
+  // the same sign on the same row is the kind of detail that reads as sloppy
+  // without being identifiable.
+  return `${(rounded === 0 ? 0 : rounded).toFixed(1).replace("-", "\u2212")} ${unit}`;
 }
 
 /** Runtime, as the two largest useful units. Seconds matter at the short end
@@ -310,7 +326,18 @@ function zoneName(entity: HassEntity | undefined, fallback: string): string {
 /* ------------------------------------------------------------ zone values */
 
 export type ZoneMode = "automatic" | "manual" | "disabled" | null;
-export type Verdict = "watering" | "disabled" | "needs-water" | "ok" | "unknown";
+/** What a zone is doing about its water, in the order the tile ranks them.
+ * `drying` is the state this card exists to separate out: a real deficit that
+ * is not yet worth a run. Without it every zone spends its whole dry-down —
+ * which is nearly all of its life — in the same alarm state as a zone that is
+ * actually parched. */
+export type Verdict = "watering" | "disabled" | "needs-water" | "drying" | "ok" | "unknown";
+
+/** Where a zone's watering point came from. It changes what the gauge's
+ * marked line is allowed to claim: the integration's own threshold is a fact
+ * about when water will be delivered, an estimate is only this card's idea of
+ * when a deficit is worth a soak. */
+export type WateringPointSource = "config" | "integration" | "estimated";
 
 export interface ZoneVals {
   entities: ZoneEntities;
@@ -324,21 +351,40 @@ export interface ZoneVals {
 
   bucket: number | null;
   bucketText: string | null;
+  /** The depth unit this zone's integration reports in — "mm" or "in". */
+  bucketUnit: string;
   maximumBucket: number | null;
-  /** Top of the gauge's surplus band, in mm — always the zone's own
-   * maximum_bucket. */
+  /** Top of the gauge's surplus band — always the zone's own maximum_bucket. */
   maximumBucketText: string | null;
-  /** mm of deficit that fills the sump. */
-  deficitScale: number;
-  deficitScaleText: string;
-  /** Percentages of the vessel's height, ready for the gauge's inline
-   * custom properties: where the zero line sits, and how far each fill
-   * reaches from it. */
+
+  /** How far below capacity the zone is, as a positive depth. Zero when the
+   * bucket is at or above capacity. */
+  deficit: number;
+  /** The deficit that counts as needing water: the zone's allowed depletion.
+   * Also the gauge's marked line. */
+  wateringPoint: number;
+  wateringPointText: string | null;
+  wateringPointSource: WateringPointSource;
+  /** How far through the dry-down the zone is, 0-100. Only meaningful below
+   * the watering point, which is where it is shown. */
+  dryDownPercent: number;
+  /** The integration has produced a run for this zone — it will water at the
+   * next start, however short the run. Separate from the verdict, because a
+   * zone with no threshold set gets a run for a tenth of a millimetre. */
+  runDue: boolean;
+
+  /** Percentages of the vessel's height, ready for the gauge's inline custom
+   * properties: where the zero line sits, where the watering point is marked,
+   * and how far each fill reaches from the zero line. */
   zeroPercent: number;
+  markPercent: number;
   surplusPercent: number;
   deficitPercent: number;
-  /** The deficit runs past the drawn scale, so the sump is full and the
-   * gauge shows a marker rather than pretending it isn't. */
+  /** The deficit fill has reached the marked watering point and covers it, so
+   * the mark has to be drawn against water rather than against the vessel. */
+  markSubmerged: boolean;
+  /** The deficit runs past the bottom of the drawn scale, so the gauge shows
+   * a marker rather than pretending it isn't. */
   deficitBeyondScale: boolean;
 
   verdict: Verdict;
@@ -367,8 +413,10 @@ export interface ZoneVals {
   multiplierMax: number;
   multiplierStep: number;
 
+  /** The net depth the last calculation applied to the bucket. */
   etValueText: string | null;
-  etDeficiencyText: string | null;
+  /** Reference evapotranspiration, positive. `et_deficiency` is exactly its
+   * negative, so only one of the two is ever shown. */
   etoText: string | null;
   drainageText: string | null;
   lastCalculatedRelative: string | null;
@@ -377,10 +425,43 @@ export interface ZoneVals {
   throughputText: string | null;
 }
 
+/* ---------------------------------------------------------- gauge geometry */
+
+/** Where the zero line sits in the vessel, as a percentage of its height.
+ *
+ * Fixed, and deliberately not proportional to the two bands' depths. The
+ * bands measure different things against different references — banked rain
+ * against `maximum_bucket`, depletion against the watering point — and a
+ * shared scale hands nearly all the vessel to the surplus, which on a typical
+ * zone (max 24mm, watering at 6mm) leaves the entire dry-down 20% of the
+ * height. That is backwards: the surplus band is empty for most of a zone's
+ * life and the deficit band is where every decision is made.
+ *
+ * Fixing the split costs the "a millimetre is the same height either side"
+ * property and buys two better ones: the deficit gets most of the vessel, and
+ * every zone's vessel is the same shape, so a column of zones can be read
+ * against each other as fractions of their own dry-downs. Both bands are
+ * labelled with their own end value, so the scale is never left implied. */
+const ZERO_PERCENT = 38;
+
+/** How far past the watering point the deficit band runs, as a multiple of
+ * it. Without headroom the watering point would be the vessel's floor, where
+ * a line marking it is indistinguishable from the rim, and a zone that is
+ * overdue would look exactly like one that has just come due. */
+const OVERSHOOT = 1.25;
+
+/** Fraction of `maximum_bucket` used as the watering point when nothing else
+ * supplies one. The integration's own threshold defaults to zero — "water as
+ * soon as anything is missing" — which is not a depth the gauge can mark, and
+ * a quarter of the soil's banked-water capacity is a conventional management
+ * allowed depletion for turf. This is the number `watering_point` overrides. */
+const ESTIMATED_DEPLETION_FRACTION = 0.25;
+
 function computeZone(
   hass: HomeAssistant,
   config: SmartIrrigationCardConfig,
   entities: ZoneEntities,
+  thresholds: Record<number, number>,
   now: Date
 ): ZoneVals {
   const get = (id?: string): HassEntity | undefined => (id ? hass.states[id] : undefined);
@@ -393,6 +474,7 @@ function computeZone(
   const mode: ZoneMode =
     rawMode === "automatic" || rawMode === "manual" || rawMode === "disabled" ? rawMode : null;
 
+  const bucketUnit = formatUnit(a.bucket_unit) || "mm";
   const bucket = num(a.bucket);
   const maximumBucketRaw = num(a.maximum_bucket);
   // A zone with no usable cap still has to draw: fall back to a 10mm scale so
@@ -400,9 +482,19 @@ function computeZone(
   const maximumBucket = maximumBucketRaw != null && maximumBucketRaw > 0 ? maximumBucketRaw : null;
   const surplusTop = maximumBucket ?? 10;
 
-  const configuredDeficit = num(config.deficit_scale);
-  const deficitScale =
-    configuredDeficit != null && configuredDeficit > 0 ? configuredDeficit : Math.max(surplusTop / 4, 1);
+  // The watering point, in preference order: what the card was told, then what
+  // the integration will actually do, then an estimate. The threshold arrives
+  // in the same unit as the bucket, so the two compare without conversion.
+  const configuredPoint = num(config.watering_point) ?? num(config.deficit_scale);
+  const integrationThreshold = num(thresholds[entities.zoneId]);
+  const point =
+    configuredPoint != null && configuredPoint > 0
+      ? ({ value: configuredPoint, source: "config" } as const)
+      : integrationThreshold != null && integrationThreshold > 0
+        ? ({ value: integrationThreshold, source: "integration" } as const)
+        : ({ value: Math.max(surplusTop * ESTIMATED_DEPLETION_FRACTION, 1), source: "estimated" } as const);
+  const wateringPoint = point.value;
+  const wateringPointSource: WateringPointSource = point.source;
 
   // The gauge is driven by the bucket rounded to the precision it is printed
   // at, not by the raw value, so the drawing and the number agree by
@@ -411,14 +503,13 @@ function computeZone(
   // fill — a 7px wavy water surface sitting on the zero line, showing water
   // the reading beside it says isn't there.
   const drawnBucket = bucket != null ? Math.round(bucket * 10) / 10 : null;
+  const deficit = drawnBucket != null && drawnBucket < 0 ? -drawnBucket : 0;
 
-  // The zero line divides the vessel in proportion to the two bands it
-  // separates, so a mm is the same number of pixels above and below it.
-  const zeroPercent = (surplusTop / (surplusTop + deficitScale)) * 100;
+  const deficitBand = 100 - ZERO_PERCENT;
+  const markPercent = ZERO_PERCENT + deficitBand / OVERSHOOT;
   const surplusPercent =
-    drawnBucket != null && drawnBucket > 0 ? clamp(drawnBucket / surplusTop, 0, 1) * zeroPercent : 0;
-  const deficitPercent =
-    drawnBucket != null && drawnBucket < 0 ? clamp(-drawnBucket / deficitScale, 0, 1) * (100 - zeroPercent) : 0;
+    drawnBucket != null && drawnBucket > 0 ? clamp(drawnBucket / surplusTop, 0, 1) * ZERO_PERCENT : 0;
+  const deficitPercent = clamp(deficit / (wateringPoint * OVERSHOOT), 0, 1) * deficitBand;
 
   const durationSeconds = available ? num(main?.state) : null;
   const maximumDuration = num(a.maximum_duration);
@@ -426,8 +517,12 @@ function computeZone(
   const throughput = num(a.throughput);
 
   const wateringNow = isBoolOn(get(entities.wateringNow)?.state);
-  const needsWater =
-    isBoolOn(get(entities.irrigationNeeded)?.state) || (durationSeconds != null && durationSeconds > 0);
+  // The integration has calculated a run. Not the same question as "does this
+  // zone need water": with no allowed depletion configured — the default —
+  // any deficit at all produces one, so a zone that was watered this morning
+  // has a run queued by lunchtime. It is worth saying, but in the sub-line.
+  const runDue = durationSeconds != null && durationSeconds > 0;
+  const dueForSoak = drawnBucket != null ? deficit >= wateringPoint : runDue;
 
   // "Watering now" outranks "disabled": a disabled zone can still be run by
   // hand, and what it is doing right now beats what it is set to do. Below
@@ -440,9 +535,11 @@ function computeZone(
       ? "watering"
       : mode === "disabled"
         ? "disabled"
-        : needsWater
+        : dueForSoak
           ? "needs-water"
-          : "ok";
+          : deficit > 0 || runDue
+            ? "drying"
+            : "ok";
   const verdictLabel =
     verdict === "watering"
       ? "Watering now"
@@ -450,9 +547,15 @@ function computeZone(
         ? "Zone disabled"
         : verdict === "needs-water"
           ? "Needs water"
-          : verdict === "ok"
-            ? "No water needed"
-            : "Unavailable";
+          : verdict === "drying"
+            ? // A run the integration will make anyway is a fact about tonight;
+              // a deficit with no run behind it is just the soil drying.
+              runDue
+              ? "Top-up due"
+              : "Drying out"
+            : verdict === "ok"
+              ? "No water needed"
+              : "Unavailable";
 
   // Lead time is the valve opening, not water on the ground, so it comes off
   // the estimate. Throughput is litres per minute for the whole zone.
@@ -476,6 +579,10 @@ function computeZone(
   const size = num(a.size);
   const sizeUnit = formatUnit(a.size_unit);
   const throughputUnit = formatUnit(a.throughput_unit);
+  // eto and et_deficiency are the same quantity with opposite signs, so the
+  // card takes whichever the install publishes and shows it once, positive.
+  const etDeficiency = num(a.et_deficiency);
+  const eto = num(a.eto) ?? (etDeficiency != null ? -etDeficiency : null);
   const drainage = num(a.current_drainage);
   const drainageRate = num(a.drainage_rate);
   const drainageUnit = formatUnit(a.current_drainage_unit) || "mm";
@@ -490,15 +597,24 @@ function computeZone(
     modeLabel: mode ? mode.charAt(0).toUpperCase() + mode.slice(1) : null,
 
     bucket,
-    bucketText: formatMm(bucket),
+    bucketText: formatDepth(bucket, bucketUnit),
+    bucketUnit,
     maximumBucket,
-    maximumBucketText: formatMm(maximumBucket),
-    deficitScale,
-    deficitScaleText: formatMm(-deficitScale) ?? "",
-    zeroPercent,
+    maximumBucketText: formatDepth(maximumBucket, bucketUnit),
+
+    deficit,
+    wateringPoint,
+    wateringPointText: formatDepth(-wateringPoint, bucketUnit),
+    wateringPointSource,
+    dryDownPercent: Math.round(clamp(deficit / wateringPoint, 0, 1) * 100),
+    runDue,
+
+    zeroPercent: ZERO_PERCENT,
+    markPercent,
     surplusPercent,
     deficitPercent,
-    deficitBeyondScale: drawnBucket != null && -drawnBucket > deficitScale,
+    markSubmerged: deficit >= wateringPoint,
+    deficitBeyondScale: deficit > wateringPoint * OVERSHOOT,
 
     verdict,
     verdictLabel,
@@ -523,9 +639,8 @@ function computeZone(
     multiplierMax: num(multiplierEntity?.attributes.max) ?? 10,
     multiplierStep: num(multiplierEntity?.attributes.step) ?? 0.1,
 
-    etValueText: formatMm(num(a.et_value)),
-    etDeficiencyText: formatMm(num(a.et_deficiency)),
-    etoText: formatMm(num(a.eto)),
+    etValueText: formatDepth(num(a.et_value), bucketUnit),
+    etoText: formatDepth(eto, bucketUnit),
     drainageText:
       drainage != null
         ? `${drainage.toFixed(1)} ${drainageUnit}${drainageRate != null ? ` · ${drainageRate} ${drainageRateUnit}` : ""}`
@@ -546,10 +661,14 @@ export interface CardVals {
    * rendering an empty shell. */
   empty: boolean;
 
-  /** Any zone dry, or any zone running: what the header icon reflects. */
+  /** Any zone actually due a soak, or any zone running: what the header icon
+   * and the card's glow reflect. A zone merely drying down is not active —
+   * that is the state a healthy zone is in nearly all the time. */
   active: boolean;
   anyWatering: boolean;
   needCount: number;
+  /** Zones with a real deficit that has not reached their watering point. */
+  dryingCount: number;
   /** Header supporting line: what the zones add up to right now. */
   summary: string;
 
@@ -626,7 +745,7 @@ export function computeVals(
           .filter((z): z is ZoneEntities => z !== undefined)
       : discovery.zones;
 
-  const zones = selected.map((entities) => computeZone(hass, config, entities, now));
+  const zones = selected.map((entities) => computeZone(hass, config, entities, info?.thresholds ?? {}, now));
 
   const globals: GlobalEntities = {
     refreshWeather: config.refresh_weather ?? discovery.globals.refreshWeather,
@@ -636,6 +755,7 @@ export function computeVals(
 
   const anyWatering = zones.some((z) => z.verdict === "watering");
   const needCount = zones.filter((z) => z.verdict === "needs-water").length;
+  const dryingCount = zones.filter((z) => z.verdict === "drying").length;
 
   const withLast = zones.filter((z) => z.lastIrrigation !== null);
   withLast.sort((a, b) => b.lastIrrigation!.getTime() - a.lastIrrigation!.getTime());
@@ -676,9 +796,13 @@ export function computeVals(
       ? single
         ? "Needs water"
         : `${needCount} of ${zones.length} zones need water`
-      : single
-        ? "No water needed"
-        : `${zones.length} zones · all at capacity`;
+      : dryingCount > 0
+        ? single
+          ? "Drying out"
+          : `${zones.length} zones · ${dryingCount} drying out`
+        : single
+          ? "No water needed"
+          : `${zones.length} zones · all at capacity`;
   const summary = freshness ?? status;
 
   return {
@@ -689,6 +813,7 @@ export function computeVals(
     active: anyWatering || needCount > 0,
     anyWatering,
     needCount,
+    dryingCount,
     summary,
 
     nextRun,

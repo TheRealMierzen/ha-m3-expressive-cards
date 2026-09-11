@@ -39,8 +39,22 @@ function hoursAhead(hours: number): string {
   return new Date(Date.now() + hours * 3_600_000).toISOString();
 }
 
-/** Three zones covering the three shapes of the gauge: at capacity, dry, and
- * holding banked rain. */
+/**
+ * Three zones covering the states the gauge and the verdict have to tell
+ * apart — which, since the verdict stopped being "is the bucket negative",
+ * means covering both sides of the watering point and both sources it can
+ * come from.
+ *
+ * - **Backyard** is drying down with an allowed depletion set in the
+ *   integration: a real deficit, well short of it, and so no run at all. This
+ *   is the state a healthy zone is in nearly all of the time, and the one the
+ *   card used to report as "Needs water" within an hour of watering.
+ * - **Front lawn** has the integration's default threshold of zero, so the
+ *   card estimates a watering point and marks it as an estimate — and the
+ *   integration has a run queued, because with no threshold any deficit at
+ *   all produces one.
+ * - **Veg beds** is holding banked rain above capacity.
+ */
 const zones: FixtureZone[] = [
   {
     zoneId: 0,
@@ -49,12 +63,14 @@ const zones: FixtureZone[] = [
     size: 85,
     throughput: 16.67,
     maximumBucket: 24,
-    bucket: 0,
+    bucket: -1.4,
+    irrigationThreshold: 6,
     mode: "automatic",
     multiplier: 1,
     leadTime: 0,
     maximumDuration: 3600,
     eto: 0.68,
+    precipitation: 0,
     drainageRate: 50.8,
     currentDrainage: 0,
     wateringNow: false,
@@ -71,12 +87,14 @@ const zones: FixtureZone[] = [
     size: 120,
     throughput: 20,
     maximumBucket: 20,
-    bucket: -3.4,
+    bucket: -6.2,
+    irrigationThreshold: 0,
     mode: "automatic",
     multiplier: 1,
     leadTime: 15,
     maximumDuration: 3600,
     eto: 4.1,
+    precipitation: 0,
     drainageRate: 45,
     currentDrainage: 0.2,
     wateringNow: false,
@@ -94,11 +112,13 @@ const zones: FixtureZone[] = [
     throughput: 8,
     maximumBucket: 16,
     bucket: 11.2,
+    irrigationThreshold: 4,
     mode: "manual",
     multiplier: 1.2,
     leadTime: 0,
     maximumDuration: 1800,
     eto: 2.2,
+    precipitation: 3.6,
     drainageRate: 30,
     currentDrainage: 1.4,
     wateringNow: false,
@@ -150,6 +170,27 @@ function irrigationInfoReply(visible: FixtureState): Record<string, unknown> {
   };
 }
 
+/** Stands in for `smart_irrigation/zones`. The card reads exactly two fields
+ * of it — the zone id and the allowed depletion — but the command publishes
+ * the whole stored zone, so the reply carries more than that: a card that
+ * only works against a reply trimmed to what it wants isn't being tested. */
+function zonesReply(visible: FixtureState): Array<Record<string, unknown>> {
+  return visible.zones.map((zone) => ({
+    id: zone.zoneId,
+    name: zone.name,
+    size: zone.size,
+    throughput: zone.throughput,
+    state: zone.mode,
+    bucket: zone.bucket,
+    maximum_bucket: zone.maximumBucket,
+    irrigation_threshold: zone.irrigationThreshold,
+    lead_time: zone.leadTime,
+    maximum_duration: zone.maximumDuration,
+    multiplier: zone.multiplier,
+    duration: durationFor(zone),
+  }));
+}
+
 function refreshHass(): void {
   const visible: FixtureState = {
     ...state,
@@ -159,6 +200,7 @@ function refreshHass(): void {
     ? async (message: Record<string, unknown>): Promise<unknown> => {
         log(`callWS ${String(message.type)}`);
         if (message.type === "smart_irrigation/info") return irrigationInfoReply(visible);
+        if (message.type === "smart_irrigation/zones") return zonesReply(visible);
         return {};
       }
     : undefined;
@@ -205,9 +247,12 @@ window.addEventListener("hass-more-info", (evt) => {
 });
 
 document.getElementById("cycle-bucket")!.addEventListener("click", () => {
-  // Walks the whole scale on the first zone: capacity, shallow deficit, past
-  // the sump's floor, part-banked, brim-full.
-  const steps = [0, -1.2, -9, 8, 24];
+  // Walks the first zone past every landmark of its own scale. Backyard's
+  // allowed depletion is 6mm, so the middle four steps are what the gauge and
+  // the verdict have to tell apart: drying, nearly due, exactly due (the
+  // marked line is covered from here on), overdue, and past the bottom of the
+  // drawn band.
+  const steps = [0, -1.4, -5.5, -6, -7, -9, 8, 24];
   const zone = state.zones[0];
   const next = steps[(steps.indexOf(zone.bucket) + 1) % steps.length];
   zone.bucket = next === undefined ? 0 : next;

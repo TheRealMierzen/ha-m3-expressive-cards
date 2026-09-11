@@ -16,6 +16,12 @@ export interface FixtureZone {
   maximumBucket: number;
   /** mm. Negative is a deficit, positive is banked rain, 0 is capacity. */
   bucket: number;
+  /** mm of deficit the zone is allowed to build up before the integration
+   * produces a run at all — its `irrigation_threshold`. Zero is the
+   * integration's own default and means "water as soon as anything is
+   * missing"; it is served over `smart_irrigation/zones`, never as an
+   * entity, which is why the card has to ask for it. */
+  irrigationThreshold: number;
   mode: "automatic" | "manual" | "disabled";
   multiplier: number;
   leadTime: number;
@@ -23,6 +29,9 @@ export interface FixtureZone {
   maximumDuration: number;
   /** mm of reference evapotranspiration for the day. */
   eto: number;
+  /** mm of rain in the same interval. Nets off the evapotranspiration to
+   * give the depth the calculation actually moved the bucket by. */
+  precipitation: number;
   drainageRate: number;
   currentDrainage: number;
   wateringNow: boolean;
@@ -50,12 +59,48 @@ export interface FixtureState {
  * it was doing bad arithmetic, so the harness does the integration's sum
  * rather than inventing a duration: a millimetre of water over `size` square
  * metres is `size` litres, delivered at `throughput` litres a minute.
+ *
+ * Two details that are easy to get wrong, and were:
+ *
+ * - **The multiplier is not in here.** It is the crop factor Kc, and the
+ *   integration applies it to the evapotranspiration filling the bucket, not
+ *   to the run draining it (its #779) — applying it at the end scaled the
+ *   whole water balance, crediting only Kc times the rain that fell.
+ * - **A deficit under the zone's allowed depletion produces no run at all**,
+ *   which is the whole point of the threshold: the water builds up into one
+ *   deep soak instead of a trickle every day.
  */
 export function durationFor(zone: FixtureZone): number {
   if (zone.bucket >= 0) return 0;
-  const litres = -zone.bucket * zone.size;
-  const seconds = (litres / zone.throughput) * 60 * zone.multiplier + zone.leadTime;
-  return Math.round(Math.min(seconds, zone.maximumDuration));
+  const deficit = -zone.bucket;
+  if (deficit < zone.irrigationThreshold) return 0;
+  const litres = deficit * zone.size;
+  // Clipped to the cap first, and only then given the lead time — a valve
+  // that takes 15s to open does not come out of the watering.
+  const seconds = Math.min((litres / zone.throughput) * 60, zone.maximumDuration);
+  return Math.round(seconds + zone.leadTime);
+}
+
+/**
+ * The two depth figures the integration publishes per zone, from one source.
+ *
+ * They are not the same quantity and are routinely read as if they were (the
+ * integration's own issue #528):
+ *
+ * - `et_deficiency` is the raw per-day figure the calculation module
+ *   returned, before the crop factor and before any rain. Negative.
+ * - `et_value` is the *net* depth the calculation applied to the bucket:
+ *   `ET0 x Kc x interval + precipitation`. Positive on a wet day. The
+ *   integration names its entity "Applied ET", which is exactly why it gets
+ *   read as the day's evapotranspiration.
+ *
+ * `eto` is `-et_deficiency` and nothing else, so the card shows one of the
+ * two and never both. The interval here is a day, so the interval multiplier
+ * is 1 and drops out.
+ */
+export function etFor(zone: FixtureZone): { etDeficiency: number; etValue: number } {
+  const etDeficiency = -zone.eto;
+  return { etDeficiency, etValue: etDeficiency * zone.multiplier + zone.precipitation };
 }
 
 function entity(id: string, state: string, attributes: HassEntity["attributes"] = {}): HassEntity {
@@ -101,11 +146,7 @@ export function buildFixtureEntities(s: FixtureState): HassEntity[] {
   for (const zone of s.zones) {
     const p = `smart_irrigation_${zone.slug}`;
     const duration = durationFor(zone);
-    // One source for both ET readouts: the day's reference ET. The ratio
-    // mimics what a real zone reports; the integration's own formula isn't
-    // reproduced here, and the card doesn't compare these two to anything.
-    const etDeficiency = -zone.eto;
-    const etValue = -zone.eto / 4;
+    const { etDeficiency, etValue } = etFor(zone);
 
     out.push(
       entity(`sensor.${p}`, String(duration), {

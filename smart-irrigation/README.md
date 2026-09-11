@@ -12,48 +12,120 @@ own duration sensor, and gets the next start from the integration directly.
 `type: custom:m3-smart-irrigation-card` with no other keys is a complete card
 — there is nothing to wire.
 
-## The bucket gauge
+## How the bucket works
 
-The integration's central idea is a virtual bucket per zone, in millimetres:
+The integration's central idea is a virtual bucket per zone, a soil-water
+balance in millimetres (inches on an imperial install — the card reads the
+unit off the zone rather than assuming):
 
-- **0 is field capacity** — the soil holds as much as it can. It is where a
-  bucket sits after a run, and it is the normal resting value.
-- **Positive is banked rain**, up to the zone's `maximum_bucket`. A full
-  bucket means no watering for a while.
-- **Negative is a deficit**, and it is what the integration turns into a run
-  duration: enough water to bring the bucket back to 0.
+- **0 is field capacity** — the soil holds all the water it usefully can. It
+  is where a run leaves the bucket, and it is the normal resting value.
+- **Positive is banked rain**, capped at the zone's `maximum_bucket`; anything
+  above that is runoff.
+- **Negative is a deficit**, which is what the integration turns into a run:
+  enough water to bring the bucket back to 0.
 
-So the gauge is a vessel with the zero line drawn across it, and the two
-bands either side are in proportion to the millimetres they represent — a mm
-is the same height above the line as below it:
+Each calculation moves it by `ET0 × multiplier × interval + precipitation`,
+caps the result at `maximum_bucket`, and then subtracts drainage **only while
+the bucket is above zero**. So a surplus drains away over the following days,
+and a deficit never does: once negative, only rain and irrigation bring it
+back.
+
+Two things that surprise people, both worth knowing before reading the gauge:
+
+- **The `multiplier` is the crop factor Kc, and it scales the
+  evapotranspiration, not the run.** `ETc = ET0 × Kc`. Turning it up makes the
+  bucket drain faster; it does not stretch a duration. (The integration moved
+  it there in its #779 — applied at the end it scaled the whole water balance,
+  crediting only Kc times the rain that actually fell.)
+- **A zone has an allowed depletion,** its `irrigation_threshold`: how far it
+  may dry out before the integration produces a run at all, so that the water
+  builds into one deep soak instead of a trickle every day. It **defaults to
+  zero**, which means "water as soon as anything at all is missing".
+
+### The gauge
 
 ```
- 24 ┌───────┐   <- maximum_bucket: the rim
-    │       │
+ 24 ┌───────┐   <- maximum_bucket: the cap on banked rain
     │≈≈≈≈≈≈≈│   <- banked rain, filling upward as water
     │███████│
-  0 ├───────┤   <- field capacity
-    │▓▓▓▓▓▓▓│   <- a deficit, hanging downward into the sump
- −6 └───────┘   <- the sump's floor (a quarter of maximum_bucket)
+  0 ├───────┤   <- field capacity, the resting value
+    │▓▓▓▓▓▓▓│   <- the deficit, hanging downward into the sump
+    │▓▓▓▓▓▓▓│
+ −6 ┄┄┄┄┄┄┄┄┄   <- the watering point: the fill reaching this line is
+    └───────┘      the "Needs water" verdict
 ```
 
+**The two bands are not one scale**, and that is deliberate. They measure
+different things against different references — banked rain against
+`maximum_bucket`, depletion against the watering point — and a shared scale
+hands nearly all of the vessel to the surplus: on a typical zone (24mm cap,
+watering at 6mm) the whole dry-down gets a fifth of the height. That is
+backwards. The surplus band is empty for most of a zone's life; the deficit
+band is where every decision is made. So the split is fixed, each band is
+scaled to its own end, and both ends are labelled on the axis. It also makes
+every zone's vessel the same shape, so a column of zones reads as fractions of
+their own dry-downs rather than as unrelated scales.
+
+The deficit band runs a quarter past the watering point, so the mark has
+somewhere to sit that is not the floor and an overdue zone looks different
+from one that has just come due. Past the bottom of the band, a
+double-chevron rather than a pretence that the scale still holds.
+
+**Where the watering point comes from**, in order: `watering_point` in the
+card config; otherwise the zone's own `irrigation_threshold`, fetched from the
+integration; otherwise a quarter of `maximum_bucket`. The last case is an
+*estimate* — this card's idea of when a deficit is worth a soak, not a promise
+the integration made — so it is drawn as a finer dotted line and labelled
+"Soak at (estimated)" in the details rather than "Waters at".
+
+### The verdict
+
 An **empty vessel is not an alarm** — it is the healthy resting state — which
-is why the verdict beside it is words rather than colour alone: *No water
-needed*, *Needs water* (with the run length and roughly how many litres that
-is), *Watering now*, or *Zone disabled*.
+is why the verdict beside it is words rather than colour alone:
 
-Two details in there worth knowing:
+| Verdict | Means |
+|---|---|
+| *Watering now* | the zone's valve is open |
+| *Needs water* | the deficit has reached the watering point; run length and roughly how many litres |
+| *Top-up due* | still short of the watering point, but the integration has a run queued anyway (which it always will with no allowed depletion set) |
+| *Drying out* | a real deficit, no run due; how far through the dry-down it is |
+| *No water needed* | at capacity, or holding banked rain |
+| *Zone disabled* | not scheduled, though it can still be run by hand |
 
-- **The sump is a quarter of the zone's maximum bucket, not the same scale as
-  the surplus band.** A deficit is nearly always small — a millimetre or two
-  of yesterday's evapotranspiration — and on a 24mm scale it would be
-  invisible. Set `deficit_scale` to override, or read the exact number in the
-  details. A deficit past the floor fills the sump and shows a
-  double-chevron rather than pretending the scale still holds.
-- **The water surface only moves while a zone is actually watering.** It is
-  M3 Expressive's wavy-progress mask reused at half its wavelength; a
-  standing bucket gets a standing surface, for the same reason the wavy
-  progress indicator flattens when nothing is progressing.
+*Drying out* and *Top-up due* are unfilled and quiet — only the states that
+are **events** get a filled block. That is the point of separating them:
+a zone spends nearly all of its life drying down.
+
+> **Why this card does not use `binary_sensor.*_irrigation_needed`.** The
+> integration computes it as a bare `bucket < 0`, ignoring the zone's own
+> allowed depletion. With continuous updates on, the first calculation after a
+> run puts the bucket a few tenths of a millimetre under zero, that sensor
+> turns on, and it stays on for the entire dry-down. A card reading it
+> announces "Needs water" within the hour, every time a zone is watered. This
+> card takes the bucket against the watering point instead, and says
+> separately — in the sub-line — when a run is nonetheless queued.
+
+**The water surface only moves while a zone is actually watering.** It is M3
+Expressive's wavy-progress mask reused at half its wavelength; a standing
+bucket gets a standing surface, for the same reason the wavy progress
+indicator flattens when nothing is progressing.
+
+## The three ET numbers are not three of the same thing
+
+The integration publishes `et_value`, `et_deficiency` and `eto` per zone, and
+they are routinely read as if they were variations on one figure (its own
+issue #528 is about exactly this). They are not:
+
+| Attribute | What it is |
+|---|---|
+| `eto` | **Reference evapotranspiration** — the day's evaporative demand, the positive figure weather services quote |
+| `et_deficiency` | Exactly `−eto`. The raw per-day figure the calculation module returned, before the crop factor and before any rain |
+| `et_value` | The **net depth the last calculation applied to the bucket**: `ET0 × Kc × interval + precipitation`. Positive on a day when more rain fell than water evaporated. The integration's entity for it is named "Applied ET", which is exactly why it gets read as the day's ET |
+
+So the card shows **two** rows, not three: *Evapotranspiration* (`eto`, as
+`mm/day`) and *Net to bucket* (`et_value`). Showing `et_deficiency` as well
+would print the same number twice with opposite signs.
 
 ## Discovery
 
@@ -82,24 +154,34 @@ npm install     # at the repository root
 npm run dev
 ```
 
-Opens a dev harness at `http://localhost:5182` with three mock zones — one at
-capacity, one dry, one holding banked rain — and buttons to walk the whole
-gauge scale, toggle watering, cycle a zone's mode, raise a problem, drop to a
-single zone, and **drop the `smart_irrigation/info` command** so the
-no-next-run fallback can be seen. Dark/light toggle and a live config dump
-beside the real visual editor.
+Opens a dev harness at `http://localhost:5182` with three mock zones chosen to
+cover both sides of the watering point and both sources it can come from:
+**Backyard** drying down with an allowed depletion set in the integration,
+**Front lawn** on the integration's default threshold of zero (so the card
+estimates a point, marks it as an estimate, and the integration has a run
+queued anyway), and **Veg beds** holding banked rain. Buttons walk the first
+zone past every landmark of its own scale — drying, nearly due, exactly due,
+overdue, past the bottom of the band — and toggle watering, cycle a zone's
+mode, raise a problem, drop to a single zone, and **drop the
+`smart_irrigation/info` command** so the no-next-run fallback can be seen.
+Dark/light toggle and a live config dump beside the real visual editor.
 
 `dev/mock-hass.ts` diverges from the copy the other cards share, for the same
-reason `activity-heatmap`'s does: it has to answer a websocket command. Its
-reply is derived from the same fixture zones the entities are built from, so
-the total duration printed beside the next start agrees with the per-zone
-durations beside the gauges.
+reason `activity-heatmap`'s does: it has to answer websocket commands — both
+`smart_irrigation/info` and `smart_irrigation/zones`. Their replies are
+derived from the same fixture zones the entities are built from, so the total
+duration printed beside the next start agrees with the per-zone durations
+beside the gauges, and the thresholds the card marks on the gauges are the
+ones the fixture durations were calculated against.
 
 The harness derives each zone's run duration from that zone's own bucket,
-size and throughput rather than carrying a separately-authored number: the
-card turns a duration back into litres and prints it next to the bucket it
-came from, so fixtures that disagreed would make a correct card look like it
-was doing bad arithmetic.
+size, throughput and allowed depletion rather than carrying a
+separately-authored number — including the two details that are easy to get
+wrong and were: the multiplier is **not** in the duration (it belongs on the
+evapotranspiration), and a deficit under the allowed depletion produces **no
+run at all**. The card turns a duration back into litres and prints it next
+to the bucket it came from, so fixtures that disagreed would make a correct
+card look like it was doing bad arithmetic.
 
 ## Building for Home Assistant
 
@@ -131,7 +213,8 @@ Every key is optional.
 | `calculate_all` | entity id | `button.*` override; discovered otherwise |
 | `irrigate_all` | entity id | `button.*` override; discovered otherwise. Only rendered when more than one zone is shown — with one zone it is the same button as that zone's own |
 | `show_details` | boolean | The per-zone collapse (default `true`) |
-| `deficit_scale` | number | mm of deficit that fill the sump. Omitted: a quarter of each zone's own `maximum_bucket` |
+| `watering_point` | number | How far a zone may dry out, in the depth unit your zones report, before the card calls it *Needs water*. Also the line marked across the gauge. Omitted: each zone's own `irrigation_threshold` from the integration, and a quarter of its `maximum_bucket` for zones that have none set |
+| `deficit_scale` | number | Deprecated name for `watering_point`, from when it only set how deep the sump was drawn. Still read; the visual editor migrates it on the next save |
 | `hold_ms` | number | How long "Hold to irrigate" must be held (default `600`). `0` fires on a plain tap |
 
 ```yaml
@@ -192,8 +275,9 @@ says whether it needs water, so repeating that would spend the card's only
 summary line on something already on screen; how current the numbers are is
 the thing nothing else on the front surface says.
 
-**Behind each zone's chevron** — bucket, last run, applied ET, daily ET
-deficiency, reference ET, drainage, water used, weather-data trust (sample
+**Behind each zone's chevron** — bucket, max bucket, the watering point and
+how far through it the zone is, last run, evapotranspiration, net to bucket,
+drainage, water used, weather-data trust (sample
 count and how long ago it was calculated), mode, zone size and throughput,
 and the run cap. Each row opens HA's more-info dialog for the underlying
 sensor where there is one, so the history graph is one tap away. Then the
@@ -226,6 +310,8 @@ Measured adjacencies (dark / light):
 | water fill vs vessel interior | 7.20 / 5.01 | 3:1 |
 | dry fill vs vessel interior | 7.18 / 5.00 | 3:1 |
 | zero line vs vessel interior | 3.86 / 3.46 | 3:1 |
+| watering-point mark vs vessel interior | 9.50 / 13.34 | 3:1 |
+| watering-point mark vs dry fill (submerged) | 7.70 / 6.45 | 3:1 |
 | verdict glyph on its own container | 5.46 / 4.99 | 3:1 |
 | verdict text on its container | 7.21 / 13.30 | 4.5:1 |
 | problem banner text on banner | 7.24 / 13.26 | 4.5:1 |
@@ -233,9 +319,19 @@ Measured adjacencies (dark / light):
 The verdict *block* against the zone tile is 1.54 / 1.05:1 — a container role
 against a surface role, which is the house pattern for chips and banners, and
 is why the block carries a glyph in the strong role as its high-contrast
-anchor. It is also why "No water needed" gets no block at all: only the
-states that are *events* are filled, which keeps the card quiet in the state
-it is in most of the time and makes a fill mean something.
+anchor. It is also why "No water needed", "Drying out" and "Top-up due" get no
+block at all: only the states that are *events* are filled, which keeps the
+card quiet in the state it is in most of the time and makes a fill mean
+something.
+
+**The deficit fill keeps one colour on both sides of the watering point**, and
+the mark's position carries the meaning instead. A second, quieter dry tone
+would have to be a reduced opacity of the same role —
+`--m3-dry-container` measures 1.32:1 dark / **1.00:1** light against the
+vessel interior, i.e. invisible — and every alpha that stayed
+distinguishable from the full-strength fill fell under the 3:1 a graphical
+object needs. The mark instead swaps to `on-dry` once the fill covers it, so
+it is read against whichever of the two it is actually drawn on.
 
 ## Behaviour notes
 
@@ -256,6 +352,13 @@ it is in most of the time and makes a fill mean something.
   `render()`, which runs for reasons that have nothing to do with the answer
   going stale; one call in flight at a time; and a card detached mid-flight
   doesn't resurrect itself with a render.
+- **The same fetch collects the zones' allowed depletions**, over
+  `smart_irrigation/zones`, because `irrigation_threshold` is in none of a
+  zone's entities or their attributes — it lives only in the integration's
+  store. The two commands are asked together and fail independently: `/zones`
+  has existed far longer than `/info`, so an install that cannot answer one
+  can still answer the other. With neither, every zone falls back to an
+  estimated watering point and says so.
 - **`irrigation_explanation` is deliberately ignored.** It is the one field in
   that reply that arrives as markup (`<br/>`-separated), nothing on this card
   renders unsanitised HTML, and the per-zone figures say the same thing in
@@ -300,7 +403,7 @@ src/
   smart-irrigation-card.ts        # the <m3-smart-irrigation-card> element
   smart-irrigation-card-editor.ts # visual editor (ha-form), covers every key
   compute.ts                      # discovery + pure value computation
-  info.ts                         # the smart_irrigation/info websocket call
+  info.ts                         # the smart_irrigation/{info,zones} calls
   m3.css.ts                       # M3E tokens (colour/shape/motion/type)
   card.css.ts                     # component styles, all built on those tokens
   editor.css.ts                   # shared editor chrome, copied verbatim

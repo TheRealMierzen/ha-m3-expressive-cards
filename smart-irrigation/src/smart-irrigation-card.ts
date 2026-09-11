@@ -402,18 +402,29 @@ export class SmartIrrigationCard extends LitElement {
 
   /** The bucket. See card.css.ts for what the geometry means. */
   private _renderGauge(zone: ZoneVals): TemplateResult {
-    const style = `--zero:${zone.zeroPercent.toFixed(2)}%;--surplus:${zone.surplusPercent.toFixed(
-      2
-    )}%;--deficit:${zone.deficitPercent.toFixed(2)}%`;
-    const label = zone.bucketText
-      ? `Bucket ${zone.bucketText}${zone.maximumBucketText ? ` of ${zone.maximumBucketText}` : ""}`
-      : "Bucket level unknown";
+    const style =
+      `--zero:${zone.zeroPercent.toFixed(2)}%;--mark:${zone.markPercent.toFixed(2)}%;` +
+      `--surplus:${zone.surplusPercent.toFixed(2)}%;--deficit:${zone.deficitPercent.toFixed(2)}%`;
+    // The scale's two ends, as bare numbers — the unit is on every written
+    // reading beside the gauge, and repeating it here costs the axis more
+    // width than it has.
+    const tick = (value: number): string => String(Math.round(value * 10) / 10);
+    // Spelled out rather than described as a picture: a screen reader gets
+    // the same two facts the drawing carries, which is how far down the zone
+    // is and how far down is far enough.
+    const label = !zone.bucketText
+      ? "Bucket level unknown"
+      : zone.deficit > 0
+        ? `Bucket ${zone.bucketText}, ${zone.dryDownPercent}% of the way to the ${
+            zone.wateringPointText ?? ""
+          } that calls for water`
+        : `Bucket ${zone.bucketText}${zone.maximumBucketText ? ` of ${zone.maximumBucketText}` : ""}, at capacity`;
     return html`
       <div class="gauge-wrap" style=${style}>
         <div class="gauge-axis m3-label-small" aria-hidden="true">
-          <span class="tick top">${zone.maximumBucket != null ? zone.maximumBucket : ""}</span>
+          <span class="tick top">${zone.maximumBucket != null ? tick(zone.maximumBucket) : ""}</span>
           <span class="tick zero">0</span>
-          <span class="tick bottom">−${Math.round(zone.deficitScale * 10) / 10}</span>
+          <span class="tick mark">−${tick(zone.wateringPoint)}</span>
         </div>
         <div
           class="gauge"
@@ -428,6 +439,12 @@ export class SmartIrrigationCard extends LitElement {
               ? html`<div class="fill fill-surplus"><div class="crest"></div></div>`
               : nothing}
             ${zone.deficitPercent > 0 ? html`<div class="fill fill-deficit"></div>` : nothing}
+            <div
+              class="water-mark ${zone.wateringPointSource === "estimated" ? "estimated" : ""} ${zone.markSubmerged
+                ? "submerged"
+                : ""}"
+              aria-hidden="true"
+            ></div>
             ${zone.deficitBeyondScale
               ? html`<div class="beyond" aria-hidden="true"><ha-icon icon="mdi:chevron-double-down"></ha-icon></div>`
               : nothing}
@@ -444,22 +461,40 @@ export class SmartIrrigationCard extends LitElement {
         ? "mdi:sprinkler-variant"
         : zone.verdict === "needs-water"
           ? "mdi:water-alert"
-          : zone.verdict === "disabled"
-            ? "mdi:pause-circle-outline"
-            : zone.verdict === "ok"
-              ? "mdi:check-circle-outline"
-              : "mdi:help-circle-outline";
+          : zone.verdict === "drying"
+            ? "mdi:water-percent"
+            : zone.verdict === "disabled"
+              ? "mdi:pause-circle-outline"
+              : zone.verdict === "ok"
+                ? "mdi:check-circle-outline"
+                : "mdi:help-circle-outline";
     // The sub-line is what the verdict is actually worth: how long the run
-    // would be and roughly how much water that is. "No water needed" says
-    // what the bucket is instead.
+    // would be and roughly how much water that is. A drying zone's worth is
+    // how far through its dry-down it has got, with the percentage first
+    // because it is the part that survives a narrow card.
     const sub =
       zone.verdict === "needs-water" || zone.verdict === "watering"
         ? [zone.durationText, zone.litresText, zone.capped ? `capped at ${zone.maxDurationText}` : null]
             .filter(Boolean)
             .join(" · ")
-        : zone.verdict === "ok" || zone.verdict === "disabled"
-          ? `Bucket ${zone.bucketText ?? "—"}${zone.deficitPercent > 0 ? " below capacity" : ""}`
-          : null;
+        : zone.verdict === "drying"
+          ? [
+              `${zone.dryDownPercent}% dried down`,
+              zone.bucketText,
+              // Worth saying out loud: with no allowed depletion configured
+              // the integration waters on any deficit at all, so the card
+              // reading "drying" and a run happening tonight are both true.
+              zone.runDue && zone.durationText ? `next run ${zone.durationText}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : zone.verdict === "ok" || zone.verdict === "disabled"
+            ? zone.deficit > 0
+              ? `Bucket ${zone.bucketText ?? "—"} below capacity`
+              : zone.bucket != null && zone.bucket > 0
+                ? `${zone.bucketText} of rain banked`
+                : "At capacity"
+            : null;
     return html`
       <div class="verdict ${zone.verdict}">
         <ha-icon class="verdict-icon" icon=${icon}></ha-icon>
@@ -496,22 +531,33 @@ export class SmartIrrigationCard extends LitElement {
     const lastRun = zone.lastIrrigationText
       ? `${zone.lastIrrigationText}${zone.lastIrrigationRelative ? ` · ${zone.lastIrrigationRelative}` : ""}`
       : null;
+    // An estimated watering point is this card's idea of when a deficit is
+    // worth a soak; the integration's own threshold is a fact about when
+    // water will be delivered. The label has to say which, or the number
+    // reads as a promise the integration never made.
+    const wateringPointLabel = zone.wateringPointSource === "estimated" ? "Soak at (estimated)" : "Waters at";
+    const wateringPointValue = zone.wateringPointText
+      ? `${zone.wateringPointText}${zone.deficit > 0 ? ` · ${zone.dryDownPercent}% there` : ""}`
+      : null;
 
     return html`
       <div class="details-body" data-details-for=${e.main} style="max-height:0">
         <div class="details-inner">
           <div class="detail-grid">
-            ${this._renderDetail(
-              "Bucket",
-              zone.bucketText != null && zone.maximumBucketText != null
-                ? `${zone.bucketText} of ${zone.maximumBucketText}`
-                : zone.bucketText,
-              e.bucket
-            )}
+            <!-- Two rows, not "-1.4 mm of 24.0 mm": the maximum is the cap on
+                 banked *rain*, so pairing it with a deficit reads as a
+                 fraction of a scale the deficit isn't even on. -->
+            ${this._renderDetail("Bucket", zone.bucketText, e.bucket)}
+            ${this._renderDetail("Max bucket", zone.maximumBucketText)}
+            ${this._renderDetail(wateringPointLabel, wateringPointValue)}
             ${this._renderDetail("Last run", lastRun, e.lastIrrigation)}
-            ${this._renderDetail("Applied ET", zone.etValueText, e.etValue)}
-            ${this._renderDetail("Daily ET deficiency", zone.etDeficiencyText, e.etDeficiency)}
-            ${this._renderDetail("Reference ET", zone.etoText)}
+            <!-- One ET row, not three. The integration publishes "eto",
+                 "et_deficiency" and "et_value"; the first two are the same
+                 number with opposite signs, and the third is not an ET at all
+                 (it is the net depth the last calculation moved the bucket
+                 by, rain included). See types.ts. -->
+            ${this._renderDetail("Evapotranspiration", zone.etoText ? `${zone.etoText}/day` : null, e.etDeficiency)}
+            ${this._renderDetail("Net to bucket", zone.etValueText, e.etValue)}
             ${this._renderDetail("Drainage", zone.drainageText, e.currentDrainage)}
             ${this._renderDetail("Water used", zone.waterUsedText, e.waterUsed)}
             ${this._renderDetail("Weather data", weather)}

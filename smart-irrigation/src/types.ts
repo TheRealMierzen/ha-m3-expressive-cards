@@ -20,13 +20,19 @@ export interface HassEntity {
      * The sensor's own state is the run duration in seconds; everything
      * needed to explain that number is in its attributes, so one entity per
      * zone is enough to draw the whole card. */
-    /** Current bucket level in mm. Negative means a soil-moisture deficit
-     * (irrigation needed to bring it back to 0); positive means banked rain.
-     * Zero is field capacity, and is the normal resting value. */
+    /** Current soil-water balance, in `bucket_unit`. Zero is field capacity —
+     * the soil holding all the water it usefully can — and is the resting
+     * value a run leaves behind. Negative is a deficit; positive is rain
+     * banked above capacity, which drains away over the following days.
+     *
+     * A calculation moves it by `ET0 x multiplier x interval + precipitation`,
+     * caps the result at `maximum_bucket`, and then subtracts drainage *only
+     * while the bucket is above zero*. A deficit therefore never drains: once
+     * negative, the only things that bring it back are rain and irrigation. */
     bucket?: number;
     bucket_unit?: string;
-    /** The cap on how much surplus the bucket can bank, in mm. Doubles as
-     * the top of the gauge's scale. */
+    /** The cap on banked rain, in `bucket_unit`. Water above it is runoff.
+     * Doubles as the top of the gauge's surplus band. */
     maximum_bucket?: number;
     /** "automatic" | "manual" | "disabled" — the zone's operating mode.
      * Named `state` in the attributes, which is not the entity's state. */
@@ -42,7 +48,11 @@ export interface HassEntity {
     drainage_rate_unit?: string;
     current_drainage?: number;
     current_drainage_unit?: string;
-    /** Scales the calculated duration. Also exposed as a number.* entity. */
+    /** The crop factor Kc. Also exposed as a number.* entity. It scales the
+     * *evapotranspiration* — `ETc = ET0 x Kc` — and so changes how fast the
+     * bucket drains, not how long a run is. (It used to be applied to the
+     * duration; the integration moved it in its #779, because scaling the
+     * whole water balance scaled the rain along with it.) */
     multiplier?: number;
     /** Seconds added to every run, e.g. for a valve that opens slowly. */
     lead_time?: number;
@@ -53,8 +63,20 @@ export interface HassEntity {
     last_calculated?: string;
     /** How many weather samples the last calculation was based on. */
     number_of_data_points?: number;
+    /* ---- the three ET numbers, which are not three of the same thing ----
+     * The integration's own issue #528 is about exactly this confusion. */
+    /** The *net* depth the last calculation applied to the bucket:
+     * `ET0 x Kc x interval + precipitation`. Positive when more rain fell
+     * than water evaporated. Named "Applied ET" by the integration's own
+     * entity, which is what makes it so easy to read as the day's ET. */
     et_value?: number;
+    /** The raw per-day figure the calculation module returned, before the
+     * interval scaling, before the crop factor and before any rain. Negative,
+     * because it is a deficiency. */
     et_deficiency?: number;
+    /** Reference evapotranspiration — the positive number weather services
+     * quote. Exactly `-et_deficiency`, so the card shows one or the other and
+     * never both. */
     eto?: number;
     /** binary_sensor.*_problem explains itself here. */
     reason?: string | null;
@@ -124,9 +146,20 @@ export interface SmartIrrigationCardConfig {
    * only ever answers "do the zones need water". */
   show_details?: boolean;
 
-  /** mm of deficit that fills the gauge's sump — the band below the zero
-   * line. Left out, a quarter of the zone's own maximum_bucket, so the
-   * scale adapts per zone instead of needing to be tuned. */
+  /** The deficit that counts as needing water, as a positive depth in the
+   * zone's own bucket unit. It is both the gauge's marked watering point and
+   * the line the "Needs water" verdict is drawn at.
+   *
+   * Left out, the card takes the zone's own `irrigation_threshold` from the
+   * integration — the allowed depletion, which *is* this number — and falls
+   * back to a quarter of `maximum_bucket` for the zones (most of them, since
+   * it is the default) whose threshold is zero. Set this only to overrule
+   * both.
+   *
+   * `deficit_scale` is the name this had when it only set the depth of the
+   * gauge's sump; it is still accepted and means the same thing. */
+  watering_point?: number;
+  /** @deprecated Use `watering_point`. */
   deficit_scale?: number;
 
   /** How long "Hold to irrigate" has to be held, in ms. */

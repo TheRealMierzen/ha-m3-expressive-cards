@@ -454,6 +454,35 @@ export const cardStyles = css`
     gap: 8px;
     margin-top: 16px;
   }
+  /* tile_columns. It is a cap, not a fixed count: the narrow-width rules
+     further down still take a wide setting down to what fits. */
+  .grid.grid-cols-1 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .grid.grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .grid.grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .grid.grid-cols-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  /* The card caps span at tile_columns; the narrow-width rules cap it again
+     at what the container allows, so a wide tile never forces an implicit
+     extra column and overflows the card. */
+  .tile.tile-span-2 {
+    grid-column: span 2;
+  }
+  .tile.tile-span-3 {
+    grid-column: span 3;
+  }
+  .tile.tile-span-4 {
+    grid-column: span 4;
+  }
 
   /* A real button, not a div with a click handler: every tile opens HA's
      more-info dialog for its entity, so it has to be reachable by keyboard
@@ -591,6 +620,50 @@ export const cardStyles = css`
     border-radius: var(--m3-shape-full);
     background: var(--m3-primary);
     transition: width var(--m3-spring-spatial-slow-duration) var(--m3-spring-spatial-slow);
+  }
+  /* An entity tile with thresholds carries its health colour on the bar as
+     well as the value, so the two never disagree about how bad it is. */
+  .tile.good .progress-active,
+  .tile.warn .progress-active,
+  .tile.bad .progress-active {
+    background: var(--sem);
+  }
+
+  /* -------------------------------------------------------------- sparkline */
+
+  /* A tile's recent history. One accent, like the progress bar beside it:
+     it is a single reading over time, not a data palette. A tile with
+     thresholds draws it in its health colour, as it does the bar. The
+     second series exists only for NVMe, where read and write share a tile. */
+  .tile-spark {
+    position: relative;
+    height: 28px;
+    margin-top: 6px;
+  }
+  .tile-spark svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .tile-spark-line {
+    fill: none;
+    stroke: var(--sem, var(--m3-primary));
+    stroke-width: 1.5px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .tile-spark-area {
+    fill: var(--sem, var(--m3-primary));
+    opacity: 0.16;
+    stroke: none;
+  }
+  .tile-spark-line.tile-spark-s1 {
+    stroke: var(--m3-tertiary);
+  }
+  .tile-spark-area.tile-spark-s1 {
+    fill: var(--m3-tertiary);
   }
   /* Ends 10px short of the right edge, not at it: the stop indicator is a
      6px dot pinned to that edge, and with both rounded the dot was drawn on
@@ -1005,13 +1078,25 @@ export const cardStyles = css`
      reflowed when the whole browser window was narrow — not when the card
      itself was. */
   @container (max-width: 560px) {
-    .grid {
+    .grid,
+    .grid.grid-cols-5,
+    .grid.grid-cols-6 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .tile.tile-span-4 {
+      grid-column: span 3;
     }
   }
   @container (max-width: 420px) {
-    .grid {
+    .grid,
+    .grid.grid-cols-3,
+    .grid.grid-cols-5,
+    .grid.grid-cols-6 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .tile.tile-span-3,
+    .tile.tile-span-4 {
+      grid-column: span 2;
     }
   }
 
@@ -1019,8 +1104,12 @@ export const cardStyles = css`
      line — squeezing the label still leaves the control overflowing — so the
      control moves under its label instead of the label truncating. */
   @container (max-width: 300px) {
-    .grid {
+    .grid,
+    .grid[class*="grid-cols-"] {
       grid-template-columns: minmax(0, 1fr);
+    }
+    .tile[class*="tile-span-"] {
+      grid-column: auto;
     }
     .row {
       row-gap: 10px;

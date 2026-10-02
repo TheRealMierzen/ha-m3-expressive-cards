@@ -236,6 +236,76 @@ export const editorStyles = css`
     text-align: center;
   }
 
+  .icon-btn.danger:hover {
+    color: var(--error-color, #e35b5b);
+  }
+  /* Holds the chevron's place on rows that don't expand, so every row's
+     move and delete buttons line up in one column. */
+  .icon-spacer {
+    flex: 0 0 auto;
+    width: 26px;
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .row-sub.bad {
+    color: var(--error-color, #e35b5b);
+  }
+
+  .sub-head {
+    margin: 16px 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--m3-on-surface-variant);
+  }
+
+  .add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .add-row.tight {
+    gap: 6px;
+    margin-top: 0;
+  }
+  .text-btn {
+    appearance: none;
+    font: inherit;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--m3-outline);
+    background: none;
+    color: var(--primary-color, #4da3ff);
+    cursor: pointer;
+  }
+  .text-btn:hover {
+    background: var(--m3-surface-container-high);
+  }
+  .text-btn ha-icon {
+    --mdc-icon-size: 16px;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    line-height: 0;
+  }
+
   .chev {
     flex: 0 0 auto;
     color: var(--m3-on-surface-variant);

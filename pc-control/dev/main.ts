@@ -11,6 +11,15 @@ registerMockHaIcon();
 let config: PcOverviewCardConfig = {
   type: "custom:m3-pc-overview-card",
   title: "Desktop PC",
+  tiles: [
+    { tile: "cpu", graph: true },
+    { tile: "ram", graph: true },
+    { entity: "sensor.pc_gpu_usage", name: "GPU", icon: "mdi:expansion-card", bar: true, graph: true, span: 2 },
+    { entity: "sensor.pc_gpu_temp", name: "GPU temp", icon: "mdi:thermometer", warn_at: 70, bad_at: 85 },
+    { tile: "temp", graph: true, hours: 6 },
+    "load",
+    { tile: "nvme", graph: true, span: 2 },
+  ],
   tracker: "device_tracker.pc",
   power_state: "sensor.pc_power_state",
   switch_wol: "switch.pc_wol",
@@ -128,6 +137,14 @@ function refreshHass(): void {
           refreshHass();
         }, 2000);
       }
+    },
+    (message) => {
+      const log = document.getElementById("log")!;
+      const line = document.createElement("div");
+      line.className = "log-line";
+      const ids = (message.entity_ids as string[] | undefined)?.join(", ") ?? "";
+      line.textContent = `[${new Date().toLocaleTimeString()}] callWS ${String(message.type)} ${ids}`;
+      log.prepend(line);
     }
   );
 }

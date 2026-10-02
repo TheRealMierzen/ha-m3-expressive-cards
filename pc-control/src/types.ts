@@ -13,11 +13,61 @@ export interface HomeAssistant {
   states: Record<string, HassEntity>;
   themes?: { darkMode?: boolean };
   callService(domain: string, service: string, serviceData?: Record<string, unknown>): void;
+  /** For tile graphs: history lives in the recorder, not in `states`. */
+  callWS?<T = unknown>(message: Record<string, unknown>): Promise<T>;
 }
+
+/** The card's own metric tiles, each reading the entity its config key names
+ * and formatting it the way that metric needs (GHz, bytes per second, …). */
+export type PcBuiltinTile = "cpu" | "load" | "temp" | "freq" | "ram" | "download" | "upload" | "nvme";
+
+/** What every tile can change about itself, built in or not. Numbers are in
+ * the entity's own units — a frequency tile's thresholds are in whatever its
+ * sensor reports, not in the GHz the tile displays. */
+export interface PcTileOptions {
+  name?: string;
+  icon?: string;
+  /** Draw a progress bar under the value, scaled from `min` to `max`. */
+  bar?: boolean;
+  min?: number;
+  max?: number;
+  /** Tints the value (and bar, and graph) amber at or above this reading. */
+  warn_at?: number;
+  /** Tints it red at or above this reading. */
+  bad_at?: number;
+  /** Draw the recent history as a line under the value. */
+  graph?: boolean;
+  /** How far back the graph reaches. */
+  hours?: number;
+  /** Grid columns the tile spans, 1–4. Narrow cards cap it. */
+  span?: number;
+}
+
+/** A built-in tile with some of its options changed. */
+export interface PcBuiltinTileConfig extends PcTileOptions {
+  tile: PcBuiltinTile;
+}
+
+/** A tile for any entity the card has no dedicated key for. */
+export interface PcEntityTileConfig extends PcTileOptions {
+  entity: string;
+  decimals?: number;
+  /** Replaces the entity's own unit_of_measurement. */
+  unit?: string;
+}
+
+/** A bare built-in name is that tile with its defaults. */
+export type PcTileConfig = PcBuiltinTile | PcBuiltinTileConfig | PcEntityTileConfig;
 
 export interface PcOverviewCardConfig {
   type: string;
   title?: string;
+
+  /** The metric grid, in order. Absent means every built-in tile; an empty
+   * list hides the grid. */
+  tiles?: PcTileConfig[];
+  /** Most columns the grid uses. Narrow cards still drop to fewer. */
+  tile_columns?: number;
 
   tracker?: string;
   power_state?: string;

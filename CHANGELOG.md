@@ -10,6 +10,31 @@ not what changed in the source.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-02
+
+### Added
+
+- **PC Overview Card: the metric grid is fully configurable.** A new `tiles`
+  list sets which tiles appear and in what order: any of the built-in tiles
+  (`cpu`, `load`, `temp`, `freq`, `ram`, `download`, `upload`, `nvme`), and
+  tiles for any other entity — a GPU, a fan, a UPS. Every tile, built in or
+  not, can be renamed and re-iconed, and can have:
+  - a **history graph** of the last 24 hours (or `hours` of your choice),
+    drawn from the recorder, with gaps where the entity was unavailable;
+  - a **progress bar** scaled from `min` to `max`;
+  - `warn_at` / `bad_at` **thresholds** that turn the value, bar and graph
+    amber or red;
+  - a **width** of up to four columns (`span`).
+
+  `tile_columns` caps the grid's columns. Leave `tiles` out and the grid is
+  the same eight tiles as before; an empty list hides it. The visual editor
+  has a new *Metric tiles* section for all of it.
+
+  An entity tile fills in what it can from the entity itself: its name, its
+  unit, an icon from its `device_class` (or its unit, for a fan's `rpm`), a
+  bar for anything measured in `%`, and sizes and rates — `kB/s`, `MiB`,
+  `Mbit/s` — rescaled to whatever reads best. Anything set on the tile wins.
+
 ## [0.5.0] - 2026-09-11
 
 ### Fixed
@@ -186,7 +211,8 @@ not what changed in the source.
 - A visual editor for every card, covering its common options.
 - MIT license.
 
-[Unreleased]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.2.0...v0.3.0

@@ -49,6 +49,65 @@ Edit Card) covers the ~20 most commonly used fields: `title`, `tracker`,
 `load_1m`, `package_temp`, `mem_usage_pct`, the three disk usage sensors,
 `lan_state`, `lan_ip`, `rx_tp`, `tx_tp`, and `power_profile`.
 
+### Metric tiles
+
+The grid under the header is the `tiles` list, in order. Leave it out and
+you get the eight built-in tiles; an empty list hides the grid. Every tile —
+built in or not — can be renamed, re-iconed, given a bar, thresholds, a
+history graph or more width.
+
+```yaml
+tile_columns: 3            # at most; narrow cards still drop to fewer
+tiles:
+  - cpu                    # a built-in with its defaults
+  - tile: ram              # a built-in with changes
+    graph: true
+  - entity: sensor.desktop_gpu_usage
+    name: GPU
+    icon: mdi:expansion-card
+    bar: true              # 0–100 unless min/max say otherwise
+    graph: true
+    span: 2                # two columns wide
+  - entity: sensor.desktop_gpu_temperature
+    name: GPU temp
+    warn_at: 70            # amber at or above
+    bad_at: 85             # red at or above
+  - tile: temp
+    graph: true
+    hours: 6               # the graph's window; 24 by default
+  - tile: nvme
+    graph: true            # read and write as two lines
+```
+
+| Option | Applies to | Default | |
+| --- | --- | --- | --- |
+| `tile` | built-ins | — | `cpu`, `load`, `temp`, `freq`, `ram`, `download`, `upload` or `nvme` |
+| `entity` | entity tiles | — | any entity |
+| `name`, `icon` | all | the tile's own, or the entity's | |
+| `unit`, `decimals` | entity tiles | the entity's unit, auto rounding | sizes and rates are rescaled unless `decimals` is set |
+| `bar` | all but `nvme` | on for `cpu`, `ram` and `%` entities | progress bar from `min` to `max` |
+| `min`, `max` | all but `nvme` | 0–100 with a bar; fitted to the data without | also fixes the graph's scale |
+| `warn_at`, `bad_at` | all but `nvme` | 60 / 80 for `temp` | value, bar and graph go green, amber, red |
+| `graph` | all | off | recent history from the recorder; gaps where the entity was unavailable |
+| `hours` | graphs | 24 | |
+| `span` | all | 1 | columns wide, 1–4, capped on narrow cards |
+
+An entity tile fills in whatever it isn't told from the entity itself: the
+name from `friendly_name`, the unit from `unit_of_measurement`, the icon from
+the entity's own `icon`, then its `device_class`, then its unit (`rpm` gets a
+fan), and a bar when the unit is `%`. Sizes and rates in any of HA's units —
+`kB/s`, `MiB`, `Mbit/s` — are rescaled to whatever reads best; set
+`decimals` to print the number exactly as the sensor reports it instead.
+
+Built-in tiles read the entities wired under their own config keys
+(`cpu_total`, `load_1m`, …) and keep their own formatting; their numbers —
+scale, thresholds — are in the sensor's units, not the displayed ones.
+Graphs are fetched only once the card's body is opened, then follow live
+state changes, and re-sync with the recorder every 30 minutes.
+
+The visual editor's *Metric tiles* section covers all of it, including
+putting back a built-in you removed.
+
 Everything else — SMART disk health, firmware/CPU-vulnerability badges,
 sleep/idle-shutdown automation gating, webcam section, mic-in-use badge,
 external IP, unit overrides — has no row in the visual editor and needs

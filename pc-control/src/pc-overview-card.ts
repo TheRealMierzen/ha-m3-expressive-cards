@@ -1,11 +1,29 @@
-import { LitElement, html, nothing } from "lit";
+import { LitElement, html, nothing, svg } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import "./pc-overview-card-editor";
 import { cardStyles } from "./card.css";
-import { ComputedPcVals, clamp, computeVals } from "./compute";
+import {
+  ComputedPcVals,
+  TileGraph,
+  TileView,
+  clamp,
+  computeVals,
+  effectiveOptions,
+  gridColumns,
+  resolveTiles,
+  tileEntities,
+  tileView,
+  validateTiles,
+} from "./compute";
+import { SPARK_H, SPARK_W, Sample, bucketise, fetchHistory, sparkPaths, toValue } from "./history";
 import { ENTITY_KEYS, HomeAssistant, PcOverviewCardConfig } from "./types";
 
 const WOL_TIMEOUT_MS = 90_000;
+/** Live updates keep a graph current between fetches; this only re-syncs it
+ * with the recorder, which may have values the card never saw. */
+const HISTORY_REFRESH_MS = 30 * 60_000;
+/** Points per graph. More than a tile is wide in pixels buys nothing. */
+const SPARK_BUCKETS = 48;
 
 const DEFAULT_CONFIG: Partial<PcOverviewCardConfig> = {
   title: "Desktop PC",
@@ -21,13 +39,28 @@ const DEFAULT_CONFIG: Partial<PcOverviewCardConfig> = {
 
 /** Only re-renders when one of the entities this card actually reads
  * changes, not on every unrelated hass update elsewhere in the system. */
+/** Every entity a graph tile draws, and how far back the longest one reaches. */
+function graphNeeds(config: PcOverviewCardConfig): { ids: string[]; hours: number } {
+  const ids = new Set<string>();
+  let hours = 0;
+  for (const t of resolveTiles(config)) {
+    const o = effectiveOptions(t);
+    if (!o.graph) continue;
+    for (const id of tileEntities(config, t)) ids.add(id);
+    hours = Math.max(hours, Number.isFinite(o.hours) && o.hours! > 0 ? o.hours! : 24);
+  }
+  return { ids: [...ids].sort(), hours };
+}
+
 function entitySignature(hass: HomeAssistant, config: PcOverviewCardConfig): string {
-  return ENTITY_KEYS.map((key) => {
-    const id = config[key];
-    if (typeof id !== "string" || id === "") return "";
-    const e = hass.states[id];
-    return e ? `${id}:${e.state}` : `${id}:_`;
-  }).join("|");
+  const tileIds = resolveTiles(config).flatMap((t) => (t.kind === "entity" ? [t.opts.entity] : []));
+  return [...ENTITY_KEYS.map((key) => config[key]), ...tileIds]
+    .map((id) => {
+      if (typeof id !== "string" || id === "") return "";
+      const e = hass.states[id];
+      return e ? `${id}:${e.state}` : `${id}:_`;
+    })
+    .join("|");
 }
 
 @customElement("m3-pc-overview-card")
@@ -43,6 +76,12 @@ export class PcOverviewCard extends LitElement {
   @state() private _drivesOpen = false;
   @state() private _versionOpen = false;
   @state() private _wolWaiting = false;
+  /** Recent samples per graphed entity: fetched once, then extended live. */
+  @state() private _history: Record<string, Sample[]> = {};
+  /** Which entities and window `_history` was fetched for. */
+  private _historyKey = "";
+  private _historyAt = 0;
+  private _historyInFlight = "";
 
   @query('[data-ref="card-body"]') private _cardBodyEl?: HTMLElement;
   @query(".drives-body") private _drivesBodyEl?: HTMLElement;
@@ -62,6 +101,7 @@ export class PcOverviewCard extends LitElement {
     const signature = entitySignature(hass, this._config);
     if (signature === this._lastSignature) return;
     this._lastSignature = signature;
+    this._appendLive(hass);
 
     const powerState = this._config.power_state ? hass.states[this._config.power_state]?.state : undefined;
     const isOn = (powerState || "").toLowerCase() === "powered on";
@@ -84,6 +124,7 @@ export class PcOverviewCard extends LitElement {
     if (!config) {
       throw new Error("Invalid configuration");
     }
+    validateTiles(config.tiles);
     this._config = { ...DEFAULT_CONFIG, ...config };
     this._mainOpen = false;
     this._drivesOpen = false;
@@ -125,7 +166,67 @@ export class PcOverviewCard extends LitElement {
     }
   }
 
+  /** A graph's newest point comes from hass rather than the recorder, so the
+   * line moves with the value printed above it instead of waiting for the
+   * next fetch. Only entities already fetched are extended — appending to a
+   * history the card never loaded would draw a line that starts now. */
+  private _appendLive(hass: HomeAssistant): void {
+    const { ids, hours } = graphNeeds(this._config);
+    if (ids.length === 0 || this._historyKey === "") return;
+    const now = Date.now();
+    const cutoff = now - hours * 3_600_000;
+    let changed = false;
+    const next = { ...this._history };
+    for (const id of ids) {
+      const samples = next[id];
+      if (!samples) continue;
+      const value = toValue(hass.states[id]?.state);
+      if (samples.length > 0 && samples[samples.length - 1][1] === value) continue;
+      // Keep the last sample from before the window: it's the value the
+      // window opens with.
+      let drop = 0;
+      while (drop + 1 < samples.length && samples[drop + 1][0] <= cutoff) drop++;
+      next[id] = [...samples.slice(drop), [now, value]];
+      changed = true;
+    }
+    if (changed) this._history = next;
+  }
+
+  /**
+   * Fetched only while the grid is on screen — the body is collapsed by
+   * default and the PC is off half the time, and neither needs the recorder
+   * queried — and again whenever the set of graphs changes or the data is
+   * old enough that the recorder may know things the card missed.
+   */
+  private _maybeFetchHistory(): void {
+    const hass = this._hass;
+    if (!hass || !this._mainOpen || !this._cardBodyEl) return;
+    const { ids, hours } = graphNeeds(this._config);
+    if (ids.length === 0) return;
+    const key = `${hours}|${ids.join(",")}`;
+    const stale = key !== this._historyKey || Date.now() - this._historyAt > HISTORY_REFRESH_MS;
+    if (!stale || this._historyInFlight === key) return;
+    this._historyInFlight = key;
+    fetchHistory(hass, ids, hours)
+      .then((history) => {
+        if (this._historyInFlight !== key) return;
+        this._history = history;
+        this._historyKey = key;
+        this._historyAt = Date.now();
+      })
+      .catch(() => {
+        // A failed fetch leaves the graph empty rather than the card broken;
+        // the next state change or reopen tries again.
+        this._historyKey = key;
+        this._historyAt = Date.now() - HISTORY_REFRESH_MS + 60_000;
+      })
+      .finally(() => {
+        if (this._historyInFlight === key) this._historyInFlight = "";
+      });
+  }
+
   protected updated(): void {
+    this._maybeFetchHistory();
     // Collapsible bodies whose DOM node we haven't synced yet — either just
     // mounted (structural rebuild, e.g. the PC just turned on) or reset via
     // setConfig — need their max-height snapped to the current open/closed
@@ -442,66 +543,62 @@ export class PcOverviewCard extends LitElement {
   }
 
   private _renderGrid(c: PcOverviewCardConfig, v: ComputedPcVals) {
+    const tiles = resolveTiles(c);
+    if (tiles.length === 0) return nothing;
+    const columns = gridColumns(c);
     return html`
-      <div class="grid">
-        ${this._tile(v.cpuText, "CPU", "mdi:cpu-64-bit", c.cpu_total, v.cpuPct)}
-        ${this._tile(v.loadText, "Load 1m", "mdi:chart-line", c.load_1m, null)}
-        ${this._tile(v.tempText, "Temp", "mdi:thermometer", c.package_temp, null, v.tempCls)}
-        ${this._tile(v.freqText, "Core 0", "mdi:sine-wave", c.core0_freq, null)}
-        ${this._tile(v.memText, "RAM", "mdi:memory", c.mem_usage_pct, v.memPct)}
-        ${this._tile(v.rxText, "Download", "mdi:download", c.rx_tp, null)}
-        ${this._tile(v.txText, "Upload", "mdi:upload", c.tx_tp, null)}
-        ${this._nvmeTile(c, v)}
+      <div class="grid ${columns ? `grid-cols-${columns}` : ""}">
+        ${tiles.map((t) => this._tile(tileView(this._hass!, c, v, t)))}
       </div>
     `;
   }
 
-  private _tile(
-    value: string,
-    label: string,
-    icon: string,
-    entityId: string | undefined,
-    pct: number | null,
-    semCls?: string
-  ) {
-    const clickable = Boolean(entityId);
+  private _tile(t: TileView) {
+    const clickable = Boolean(t.entityId);
+    const cls = ["tile", clickable ? "clickable" : "", t.semCls, t.span > 1 ? `tile-span-${t.span}` : ""];
     return html`
       <button
-        class="tile ${clickable ? "clickable" : ""} ${semCls ?? ""}"
+        class=${cls.filter(Boolean).join(" ")}
         type="button"
         ?disabled=${!clickable}
-        aria-label=${clickable ? `${label}: ${value}. Show details` : `${label}: ${value}`}
-        @click=${(e: Event) => this._onMoreInfoClick(e, entityId)}
+        aria-label=${clickable ? `${t.label}: ${t.value}. Show details` : `${t.label}: ${t.value}`}
+        @click=${(e: Event) => this._onMoreInfoClick(e, t.entityId)}
       >
         <div class="tile-top">
-          <ha-icon icon=${icon}></ha-icon>
-          <div class="tile-label m3-label-medium">${label}</div>
+          <ha-icon icon=${t.icon}></ha-icon>
+          <div class="tile-label m3-label-medium">${t.label}</div>
         </div>
-        <div class="tile-value m3-title-small-emphasized ${semCls ? "sem" : ""}">${value}</div>
-        ${pct != null ? this._progress(pct) : nothing}
+        ${t.rows
+          ? html`<div class="tile-nvme m3-label-large">
+              ${t.rows.map(
+                ([key, text]) => html`<span class="tile-nvme-row"><span class="tile-nvme-key">${key}</span>${text}</span>`
+              )}
+            </div>`
+          : html`<div class="tile-value m3-title-small-emphasized ${t.semCls ? "sem" : ""}">${t.value}</div>`}
+        ${t.graph ? this._spark(t.graph) : nothing}
+        ${t.pct != null ? this._progress(t.pct) : nothing}
       </button>
     `;
   }
 
-  private _nvmeTile(c: PcOverviewCardConfig, v: ComputedPcVals) {
-    const eid = c.nvme_read_rate;
+  /** The tile's recent history. Drawn at a fixed height even before the
+   * data arrives, so the grid doesn't jump when it does. */
+  private _spark(g: TileGraph) {
+    const end = Date.now();
+    const start = end - g.hours * 3_600_000;
+    const series = g.ids.map((id) => bucketise(this._history[id] ?? [], start, end, SPARK_BUCKETS));
+    const paths = sparkPaths(series, g.min, g.max);
     return html`
-      <button
-        class="tile ${eid ? "clickable" : ""}"
-        type="button"
-        ?disabled=${!eid}
-        aria-label=${`NVMe I/O: read ${v.nvmeRdText}, write ${v.nvmeWrText}`}
-        @click=${(e: Event) => this._onMoreInfoClick(e, eid)}
-      >
-        <div class="tile-top">
-          <ha-icon icon="mdi:harddisk"></ha-icon>
-          <div class="tile-label m3-label-medium">NVMe I/O</div>
-        </div>
-        <div class="tile-nvme m3-label-large">
-          <span class="tile-nvme-row"><span class="tile-nvme-key">R</span>${v.nvmeRdText}</span>
-          <span class="tile-nvme-row"><span class="tile-nvme-key">W</span>${v.nvmeWrText}</span>
-        </div>
-      </button>
+      <div class="tile-spark" aria-hidden="true">
+        <svg viewBox="0 0 ${SPARK_W} ${SPARK_H}" preserveAspectRatio="none">
+          ${paths.map(
+            (p, i) => svg`
+              <path class="tile-spark-area tile-spark-s${i}" d=${p.area}></path>
+              <path class="tile-spark-line tile-spark-s${i}" d=${p.line}></path>
+            `
+          )}
+        </svg>
+      </div>
     `;
   }
 

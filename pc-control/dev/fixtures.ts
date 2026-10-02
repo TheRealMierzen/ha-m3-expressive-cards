@@ -4,6 +4,12 @@ function entity(id: string, state: string, friendlyName: string): HassEntity {
   return { entity_id: id, state, attributes: { friendly_name: friendlyName } };
 }
 
+function measured(id: string, state: string, friendlyName: string, unit: string, deviceClass?: string): HassEntity {
+  const attributes: HassEntity["attributes"] = { friendly_name: friendlyName, unit_of_measurement: unit };
+  if (deviceClass) attributes.device_class = deviceClass;
+  return { entity_id: id, state, attributes };
+}
+
 export function buildFixtureEntities(opts: {
   poweredOn: boolean;
   cpuPct: number;
@@ -69,5 +75,12 @@ export function buildFixtureEntities(opts: {
     entity("camera.pc_webcam", opts.webcamActive ? "recording" : "idle", "PC Webcam"),
     entity("button.pc_webcam_start", "unknown", "PC Webcam Start"),
     entity("button.pc_webcam_stop", "unknown", "PC Webcam Stop"),
+
+    // Entities with no dedicated config key, for the configurable tile grid.
+    measured("sensor.pc_gpu_usage", String(Math.round(opts.cpuPct * 1.4) % 100), "PC GPU Usage", "%"),
+    measured("sensor.pc_gpu_temp", String(opts.tempC + 9), "PC GPU Temperature", "°C", "temperature"),
+    measured("sensor.pc_gpu_vram_used", "3355.4", "PC GPU VRAM Used", "MiB", "data_size"),
+    measured("sensor.pc_wan_down", "48.2", "PC WAN Download", "Mbit/s", "data_rate"),
+    measured("sensor.pc_fan_speed", "1240", "PC CPU Fan", "rpm"),
   ];
 }

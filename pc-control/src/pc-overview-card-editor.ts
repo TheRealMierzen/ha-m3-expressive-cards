@@ -1,7 +1,21 @@
 import { LitElement, TemplateResult, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import {
+  BUILTIN_TILES,
+  ComputedPcVals,
+  DEFAULT_COLUMNS,
+  DEFAULT_TILES,
+  MAX_COLUMNS,
+  MAX_SPAN,
+  NormalTile,
+  TILE_DEFAULTS,
+  computeVals,
+  inferOptions,
+  normaliseTile,
+  tileView,
+} from "./compute";
 import { editorStyles } from "./editor.css";
-import { HomeAssistant, PcOverviewCardConfig } from "./types";
+import { HomeAssistant, PcBuiltinTile, PcOverviewCardConfig, PcTileConfig } from "./types";
 
 type FormData = Record<string, unknown>;
 
@@ -28,6 +42,7 @@ const DEFAULTS: Record<string, unknown> = {
   idle_shutdown_network_busy_threshold: 1048576,
   automation_sleep_schedule_time_after: 19,
   show_inhibit_pill_only_when_on: true,
+  tile_columns: DEFAULT_COLUMNS,
 };
 
 /**
@@ -61,6 +76,7 @@ const TOP_SCHEMA = [{ name: "title", selector: { text: {} } }];
 
 const LABELS: Record<string, string> = {
   title: "Title",
+  tile_columns: "Columns, at most",
 
   tracker: "Presence tracker",
   power_state: "Power state",
@@ -129,6 +145,7 @@ const LABELS: Record<string, string> = {
 };
 
 const HELPERS: Record<string, string> = {
+  tile_columns: "A narrow card still drops to three, two or one so nothing gets squeezed.",
   tracker:
     "Whether the machine is reachable. While it reads away, tapping the card's header is what offers to wake it.",
   power_state:
@@ -421,6 +438,113 @@ const SECTIONS: Section[] = [
   },
 ];
 
+/* ------------------------------------------------------------------- tiles */
+
+const TILE_LABELS: Record<string, string> = {
+  entity: "Entity",
+  name: "Name",
+  icon: "Icon",
+  unit: "Unit",
+  decimals: "Decimal places",
+  bar: "Progress bar",
+  min: "Scale starts at",
+  max: "Scale ends at",
+  warn_at: "Amber from",
+  bad_at: "Red from",
+  graph: "History graph",
+  hours: "Graph covers",
+  span: "Width",
+};
+
+const TILE_HELPERS: Record<string, string> = {
+  unit: "Leave blank to use the entity's own unit. Sizes and rates — kB/s, MiB, Mbit/s — are rescaled to whatever reads best.",
+  decimals: "Leave blank to round to one place, or none for whole and large numbers.",
+  min: "The bar's empty end, and the graph's floor. Leave both blank on a graph without a bar and it fits its own data.",
+  max: "The bar's full end, and the graph's ceiling. A bar defaults to 0–100 — right for a percentage, wrong for most else.",
+  warn_at:
+    "With either threshold set, the value, bar and graph turn green, amber or red. In the entity's own units.",
+  graph: "The recent history, drawn from the recorder, as a line under the value.",
+  span: "How many grid columns the tile takes. A narrow card caps it.",
+};
+
+/** Which fields a tile's form owns, in order, for its kind and current
+ * choices — a scale is only offered once there's something to scale. */
+function tileFields(t: NormalTile, o: Record<string, unknown>): string[] {
+  const dual = t.kind === "builtin" && Boolean(BUILTIN_TILES[t.tile].dual);
+  const fields = t.kind === "entity" ? ["entity", "name", "icon", "unit", "decimals"] : ["name", "icon"];
+  if (!dual) fields.push("bar");
+  if (!dual && (o.bar || o.graph)) fields.push("min", "max");
+  if (!dual) fields.push("warn_at", "bad_at");
+  fields.push("graph");
+  if (o.graph) fields.push("hours");
+  fields.push("span");
+  return fields;
+}
+
+const BOX = { number: { mode: "box", step: "any" } };
+const TILE_SELECTORS: Record<string, unknown> = {
+  entity: { entity: {} },
+  name: { text: {} },
+  icon: { icon: {} },
+  unit: { text: {} },
+  decimals: { number: { mode: "box", min: 0, max: 4, step: 1 } },
+  bar: { boolean: {} },
+  min: BOX,
+  max: BOX,
+  warn_at: BOX,
+  bad_at: BOX,
+  graph: { boolean: {} },
+  hours: { number: { mode: "box", min: 1, max: 168, step: 1, unit_of_measurement: "h" } },
+  span: {
+    select: {
+      mode: "dropdown",
+      options: Array.from({ length: MAX_SPAN }, (_, i) => ({
+        value: String(i + 1),
+        label: i === 0 ? "One column" : `${i + 1} columns`,
+      })),
+    },
+  },
+};
+
+/** What a tile is when its config says nothing — so the form can show it,
+ * and the write can leave it out. */
+function tileDefaults(
+  t: NormalTile,
+  opts: Record<string, unknown>,
+  hass?: HomeAssistant
+): Record<string, unknown> {
+  const inferred = inferOptions(hass, t);
+  const base: Record<string, unknown> = {
+    bar: inferred.bar ?? false,
+    graph: false,
+    hours: TILE_DEFAULTS.hours,
+    span: "1",
+  };
+  if (t.kind === "builtin") {
+    const info = BUILTIN_TILES[t.tile];
+    Object.assign(base, { name: info.label, icon: info.icon }, info.defaults);
+  }
+  // 0–100 is the bar's scale. A graph without a bar has none until you give
+  // it one, so its blank min/max mean "fit the data", not 0 and 100.
+  if (opts.bar ?? base.bar) Object.assign(base, { min: TILE_DEFAULTS.min, max: TILE_DEFAULTS.max });
+  return base;
+}
+
+function isDefaultTiles(tiles: PcTileConfig[]): boolean {
+  return tiles.length === DEFAULT_TILES.length && tiles.every((t, i) => t === DEFAULT_TILES[i]);
+}
+
+function tilesSummary(config: PcOverviewCardConfig): string {
+  const tiles = (config.tiles ?? DEFAULT_TILES).map(normaliseTile).filter((t): t is NormalTile => t !== null);
+  if (tiles.length === 0) return "hidden";
+  const parts = [config.tiles === undefined ? `the default ${tiles.length}` : `${tiles.length} tiles`];
+  const custom = tiles.filter((t) => t.kind === "entity").length;
+  const graphs = tiles.filter((t) => t.opts.graph).length;
+  if (custom > 0) parts.push(`${custom} for other entities`);
+  if (graphs > 0) parts.push(`${graphs} with graphs`);
+  return parts.join(" · ");
+}
+
 /* ------------------------------------------------------------------- shell */
 
 @customElement("m3-pc-overview-card-editor")
@@ -433,6 +557,8 @@ export class PcOverviewCardEditor extends LitElement {
   /** Sections are independent rather than an accordion — wiring one usually
    * means checking it against another in the same pass. */
   @state() private _open: Record<string, boolean> = { presence: true };
+  /** Which tile row is expanded. Positional, so a move or delete adjusts it. */
+  @state() private _openTile: number | null = null;
 
   setConfig(config: PcOverviewCardConfig): void {
     this._config = config;
@@ -573,6 +699,307 @@ export class PcOverviewCardEditor extends LitElement {
     `;
   }
 
+  /* ----------------------------------------------------------------- tiles */
+
+  private get _tiles(): PcTileConfig[] {
+    return this._config?.tiles ?? DEFAULT_TILES;
+  }
+
+  /** The default list is written as no list at all, so the YAML only carries
+   * a grid somebody actually changed. */
+  private _emitTiles(tiles: PcTileConfig[]): void {
+    if (!this._config) return;
+    const next: Record<string, unknown> = { ...this._config };
+    if (isDefaultTiles(tiles)) delete next.tiles;
+    else next.tiles = tiles;
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: next as unknown as PcOverviewCardConfig },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private _addEntityTile(): void {
+    const tiles = [...this._tiles, { entity: "" }];
+    this._openTile = tiles.length - 1;
+    this._emitTiles(tiles);
+  }
+
+  private _addBuiltinTile(tile: PcBuiltinTile): void {
+    this._emitTiles([...this._tiles, tile]);
+  }
+
+  private _removeTile(index: number): void {
+    if (this._openTile === index) this._openTile = null;
+    else if (this._openTile !== null && this._openTile > index) this._openTile -= 1;
+    this._emitTiles(this._tiles.filter((_, i) => i !== index));
+  }
+
+  private _moveTile(index: number, delta: -1 | 1): void {
+    const target = index + delta;
+    const tiles = [...this._tiles];
+    if (target < 0 || target >= tiles.length) return;
+    [tiles[index], tiles[target]] = [tiles[target], tiles[index]];
+    if (this._openTile === index) this._openTile = target;
+    else if (this._openTile === target) this._openTile = index;
+    this._emitTiles(tiles);
+  }
+
+  private _resetTiles(): void {
+    this._openTile = null;
+    this._emitTiles(DEFAULT_TILES);
+  }
+
+  /** The form's view of a tile: its own options over its defaults. Span is a
+   * dropdown, so it travels as a string. */
+  private _tileData(t: NormalTile): FormData {
+    const opts = { ...(t.opts as Record<string, unknown>) };
+    if (opts.span !== undefined) opts.span = String(opts.span);
+    return { ...tileDefaults(t, opts, this.hass), ...opts };
+  }
+
+  /**
+   * Writes only what departs from the tile's defaults. A built-in with no
+   * departures goes back to being its bare name, so undoing every change
+   * leaves the YAML as it was.
+   */
+  private _tileChanged(index: number, t: NormalTile, ev: CustomEvent<{ value: FormData }>): void {
+    ev.stopPropagation();
+    const value = ev.detail.value ?? {};
+    // Defaults are inferred from the entity being saved, not the one the
+    // tile had before, so picking a percentage sensor brings its bar with it.
+    // The form still holds the old entity's defaults, and those are not
+    // choices: a value that only matched them is treated as unset.
+    const before = tileDefaults(t, t.opts as Record<string, unknown>, this.hass);
+    const entityChanged = t.kind === "entity" && value.entity !== t.opts.entity;
+    const target: NormalTile =
+      t.kind === "entity" && entityChanged
+        ? { kind: "entity", opts: { ...t.opts, entity: String(value.entity ?? "") } }
+        : t;
+    const unpinned: FormData = { ...value };
+    if (entityChanged) {
+      for (const key of Object.keys(before)) {
+        if (key !== "entity" && !(key in t.opts) && unpinned[key] === before[key]) delete unpinned[key];
+      }
+    }
+    const defaults = tileDefaults(target, unpinned, this.hass);
+    const opts: Record<string, unknown> = {};
+    for (const key of tileFields(target, { ...defaults, ...unpinned })) {
+      const raw = unpinned[key];
+      const empty =
+        raw === undefined || raw === null || raw === "" || (typeof raw === "number" && !Number.isFinite(raw));
+      if (empty || raw === defaults[key]) continue;
+      opts[key] = key === "span" ? Number(raw) : raw;
+    }
+    let tile: PcTileConfig;
+    if (t.kind === "builtin") {
+      tile = Object.keys(opts).length === 0 ? t.tile : { tile: t.tile, ...opts };
+    } else {
+      // The entity is kept even while blank, or a tile added a moment ago
+      // would vanish from the list before it could be filled in. The card
+      // skips it.
+      tile = { ...opts, entity: typeof value.entity === "string" ? value.entity : "" };
+    }
+    const tiles = [...this._tiles];
+    tiles[index] = tile;
+    this._emitTiles(tiles);
+  }
+
+  private _iconButton(
+    icon: string,
+    label: string,
+    handler: () => void,
+    opts: { disabled?: boolean; danger?: boolean } = {}
+  ) {
+    return html`
+      <button
+        class=${opts.danger ? "icon-btn danger" : "icon-btn"}
+        type="button"
+        title=${label}
+        aria-label=${label}
+        ?disabled=${opts.disabled === true}
+        @click=${(e: Event) => {
+          e.stopPropagation();
+          handler();
+        }}
+      >
+        <ha-icon icon=${icon}></ha-icon>
+      </button>
+    `;
+  }
+
+  /** The row's second line: what the tile reads now, as the card prints it,
+   * then whatever it draws besides the number. */
+  private _tileSub(t: NormalTile, v: ComputedPcVals): { text: string; bad: boolean } {
+    if (t.kind === "entity" && !t.opts.entity) return { text: "pick an entity", bad: false };
+    const view = tileView(this.hass!, this._config!, v, t);
+    const id = view.entityId;
+    let reading = view.value;
+    let bad = false;
+    if (!id) {
+      reading = t.kind === "builtin" ? `${LABELS[BUILTIN_TILES[t.tile].key]} not wired` : "";
+    } else if (!this.hass?.states[id]) {
+      reading = `${id} not found`;
+      bad = true;
+    } else {
+      bad = this.hass.states[id].state === "unavailable";
+    }
+    const extras = [
+      t.kind === "builtin" ? "built in" : "",
+      view.pct != null ? "bar" : "",
+      view.graph ? `graph ${view.graph.hours}h` : "",
+      view.span > 1 ? `${view.span} wide` : "",
+    ].filter(Boolean);
+    return { text: [reading, ...extras].join(" · "), bad };
+  }
+
+  private _renderTileRow(raw: PcTileConfig, index: number, v: ComputedPcVals): TemplateResult {
+    const t = normaliseTile(raw);
+    if (!t) return html``;
+    const open = this._openTile === index;
+    const title =
+      t.kind === "builtin"
+        ? t.opts.name || BUILTIN_TILES[t.tile].label
+        : t.opts.entity
+          ? tileView(this.hass!, this._config!, v, t).label
+          : "New tile";
+    const sub = this._tileSub(t, v);
+    const toggle = (): void => {
+      this._openTile = open ? null : index;
+    };
+    const data = this._tileData(t);
+    const schema = tileFields(t, data).map((name) => ({ name, selector: TILE_SELECTORS[name] }));
+    return html`
+      <div class=${open ? "row open" : "row"}>
+        <div
+          class="row-head"
+          role="button"
+          tabindex="0"
+          aria-expanded=${open ? "true" : "false"}
+          @click=${toggle}
+          @keydown=${(e: KeyboardEvent) => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            e.preventDefault();
+            toggle();
+          }}
+        >
+          <span class="row-text">
+            <div class="row-title">${title}</div>
+            <div class=${sub.bad ? "row-sub bad" : "row-sub"}>${sub.text}</div>
+          </span>
+          <span class="row-actions">
+            ${this._iconButton("mdi:arrow-up", "Move up", () => this._moveTile(index, -1), { disabled: index === 0 })}
+            ${this._iconButton("mdi:arrow-down", "Move down", () => this._moveTile(index, 1), {
+              disabled: index === this._tiles.length - 1,
+            })}
+            ${this._iconButton("mdi:delete-outline", "Remove", () => this._removeTile(index), { danger: true })}
+            ${this._iconButton(open ? "mdi:chevron-up" : "mdi:chevron-down", open ? "Collapse" : "Expand", toggle)}
+          </span>
+        </div>
+        ${open
+          ? html`
+              <div class="row-body">
+                ${t.kind === "builtin"
+                  ? html`<div class="hint">
+                      Reads ${LABELS[BUILTIN_TILES[t.tile].key]}${BUILTIN_TILES[t.tile].dual
+                        ? html` and ${LABELS[BUILTIN_TILES[t.tile].dual!.key]}`
+                        : nothing}, wired in its own section below, and keeps the card's own formatting.
+                    </div>`
+                  : nothing}
+                <ha-form
+                  .hass=${this.hass}
+                  .data=${data}
+                  .schema=${schema}
+                  .computeLabel=${(s: { name: string }) => TILE_LABELS[s.name] ?? s.name}
+                  .computeHelper=${(s: { name: string }) => TILE_HELPERS[s.name]}
+                  @value-changed=${(ev: CustomEvent<{ value: FormData }>) => this._tileChanged(index, t, ev)}
+                ></ha-form>
+              </div>
+            `
+          : nothing}
+      </div>
+    `;
+  }
+
+  private _renderTilesSection(): TemplateResult {
+    const open = this._open.tiles === true;
+    const tiles = this._tiles;
+    const present = new Set(
+      tiles.map(normaliseTile).flatMap((t) => (t?.kind === "builtin" ? [t.tile] : []))
+    );
+    const missing = DEFAULT_TILES.filter((name) => !present.has(name));
+    const v = computeVals(this.hass!, this._config!);
+    return html`
+      <div class=${open ? "row open" : "row"}>
+        <button
+          class="row-head"
+          type="button"
+          aria-expanded=${open ? "true" : "false"}
+          @click=${() => this._toggle("tiles")}
+        >
+          <span class="row-text">
+            <div class="row-title">Metric tiles</div>
+            <div class="row-sub">${tilesSummary(this._config!)}</div>
+          </span>
+          <span class="chev">
+            <ha-icon icon=${open ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>
+          </span>
+        </button>
+        ${open
+          ? html`
+              <div class="row-body">
+                <div class="hint">
+                  The grid under the header, in this order. Open any tile to rename it, change its icon, give it a
+                  bar, thresholds, a history graph or more width — built-in or not. Add a tile for any other
+                  entity: a GPU, a fan, a UPS.
+                </div>
+                <ha-form
+                  .hass=${this.hass}
+                  .data=${this._dataFor(["tile_columns"])}
+                  .schema=${[
+                    {
+                      name: "tile_columns",
+                      selector: { number: { mode: "box", min: 1, max: MAX_COLUMNS, step: 1 } },
+                    },
+                  ]}
+                  .computeLabel=${this._computeLabel}
+                  .computeHelper=${this._computeHelper}
+                  @value-changed=${(ev: CustomEvent<{ value: FormData }>) => this._valueChanged(["tile_columns"], ev)}
+                ></ha-form>
+                ${tiles.length === 0
+                  ? html`<div class="empty">No tiles — the grid is hidden.</div>`
+                  : html`<div class="list">${tiles.map((t, i) => this._renderTileRow(t, i, v))}</div>`}
+                <div class="add-row">
+                  <button class="text-btn" type="button" @click=${() => this._addEntityTile()}>
+                    <ha-icon icon="mdi:plus"></ha-icon>Add entity tile
+                  </button>
+                  ${this._config!.tiles !== undefined
+                    ? html`<button class="text-btn" type="button" @click=${() => this._resetTiles()}>
+                        <ha-icon icon="mdi:restore"></ha-icon>Reset to default
+                      </button>`
+                    : nothing}
+                </div>
+                ${missing.length > 0
+                  ? html`
+                      <div class="sub-head">Put back a built-in tile</div>
+                      <div class="add-row tight">
+                        ${missing.map(
+                          (t) => html`<button class="text-btn" type="button" @click=${() => this._addBuiltinTile(t)}>
+                            <ha-icon icon=${BUILTIN_TILES[t].icon}></ha-icon>${BUILTIN_TILES[t].label}
+                          </button>`
+                        )}
+                      </div>
+                    `
+                  : nothing}
+              </div>
+            `
+          : nothing}
+      </div>
+    `;
+  }
+
   protected render() {
     if (!this._config || !this.hass) {
       return nothing;
@@ -587,8 +1014,12 @@ export class PcOverviewCardEditor extends LitElement {
         @value-changed=${(ev: CustomEvent<{ value: FormData }>) =>
           this._valueChanged(TOP_FIELDS, ev)}
       ></ha-form>
-      <div class="sections">${SECTIONS.map((section) => this._renderSection(section))}</div>
-      
+      <div class="sections">
+        ${SECTIONS.map(
+          (section) => html`${this._renderSection(section)}
+          ${section.key === "controls" ? this._renderTilesSection() : nothing}`
+        )}
+      </div>
     `;
   }
 }

@@ -199,6 +199,11 @@ that snaps new bodies to their current state with no animation, and an
 imperative `_animateExpand()` using `requestAnimationFrame` + `scrollHeight`
 + a `transitionend` listener. Respect `prefers-reduced-motion`.
 
+**Never reset open/closed state in `setConfig()`.** HA's editor preview
+calls it on every edit, keystroke by keystroke, so a card that closes its
+sections there collapses under the field being typed in. The identity check
+in `updated()` already handles a body that does get rebuilt.
+
 ## Responsive width: container queries, not `@media`
 
 A dashboard column's width has no fixed relationship to the browser

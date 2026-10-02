@@ -91,9 +91,10 @@ export class GarageAutoOpenCard extends LitElement {
       throw new Error("Invalid configuration");
     }
     this._config = { ...DEFAULT_CONFIG, ...config };
-    this._mainOpen = false;
     this._lastSignature = "";
     this._cancelHold();
+    // Open sections stay as they are. HA's editor preview calls setConfig on
+    // every edit, so closing them here collapsed the card on each keystroke.
   }
 
   disconnectedCallback(): void {

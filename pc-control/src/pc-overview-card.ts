@@ -126,18 +126,16 @@ export class PcOverviewCard extends LitElement {
     }
     validateTiles(config.tiles);
     this._config = { ...DEFAULT_CONFIG, ...config };
-    this._mainOpen = false;
-    this._drivesOpen = false;
-    this._versionOpen = false;
     this._wolWaiting = false;
     if (this._wolTimer) {
       clearTimeout(this._wolTimer);
       this._wolTimer = undefined;
     }
     this._lastSignature = "";
-    this._syncedCardBodyEl = undefined;
-    this._syncedDrivesBodyEl = undefined;
-    this._syncedVersionBodyEl = undefined;
+    // Open sections stay as they are. HA's editor preview calls setConfig on
+    // every edit, so closing them here collapsed the card on each keystroke.
+    // A section body that does get rebuilt is still picked up by identity in
+    // updated().
   }
 
   static getStubConfig(): PcOverviewCardConfig {
@@ -227,10 +225,9 @@ export class PcOverviewCard extends LitElement {
 
   protected updated(): void {
     this._maybeFetchHistory();
-    // Collapsible bodies whose DOM node we haven't synced yet — either just
-    // mounted (structural rebuild, e.g. the PC just turned on) or reset via
-    // setConfig — need their max-height snapped to the current open/closed
-    // state with no animation. Ongoing toggles animate via _animateExpand
+    // Collapsible bodies whose DOM node we haven't synced yet — just mounted,
+    // by a structural rebuild such as the PC turning on — need their
+    // max-height snapped to the current open/closed state with no animation. Ongoing toggles animate via _animateExpand
     // directly and must not be touched here, so this only acts once per
     // element identity.
     const cardBody = this._cardBodyEl;

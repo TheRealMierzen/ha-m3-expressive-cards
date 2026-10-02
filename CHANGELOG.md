@@ -10,6 +10,15 @@ not what changed in the source.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-02
+
+### Fixed
+
+- **PC Overview, Geyser Status, Irrigation Schedule and Garage cards: editing
+  the card no longer collapses its preview.** Every change in the visual
+  editor — each keystroke in a text field — closed the card's sections, so
+  the thing being edited kept disappearing from the preview.
+
 ## [0.6.0] - 2026-10-02
 
 ### Added
@@ -211,7 +220,8 @@ not what changed in the source.
 - A visual editor for every card, covering its common options.
 - MIT license.
 
-[Unreleased]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/TheRealMierzen/ha-m3-expressive-cards/compare/v0.3.0...v0.4.0

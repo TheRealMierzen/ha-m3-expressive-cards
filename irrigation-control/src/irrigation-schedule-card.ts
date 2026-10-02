@@ -80,14 +80,14 @@ export class IrrigationScheduleCard extends LitElement {
     }
     this._config = { ...DEFAULT_CONFIG, ...config };
     this._lastSignature = "";
-    this._mainOpen = false;
-    this._scheduleOpen = false;
-    this._syncedCardBodyEl = undefined;
-    this._syncedScheduleBodyEl = undefined;
     if (this._tickInterval) {
       clearInterval(this._tickInterval);
       this._tickInterval = undefined;
     }
+    // Open sections stay as they are. HA's editor preview calls setConfig on
+    // every edit, so closing them here collapsed the card on each keystroke.
+    // A section body that does get rebuilt is still picked up by identity in
+    // updated().
   }
 
   static getStubConfig(): IrrigationScheduleCardConfig {

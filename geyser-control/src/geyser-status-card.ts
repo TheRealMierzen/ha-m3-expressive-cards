@@ -90,12 +90,10 @@ export class GeyserStatusCard extends LitElement {
     this._config = { ...DEFAULT_CONFIG, ...config };
     this._lastSignature = "";
     this._lastNextShowerState = undefined;
-    this._mainOpen = false;
-    this._settingsOpen = false;
-    this._detailsOpen = false;
-    this._syncedCardBodyEl = undefined;
-    this._syncedSettingsBodyEl = undefined;
-    this._syncedDetailsBodyEl = undefined;
+    // Open sections stay as they are. HA's editor preview calls setConfig on
+    // every edit, so closing them here collapsed the card on each keystroke.
+    // A section body that does get rebuilt is still picked up by identity in
+    // updated().
   }
 
   static getStubConfig(): GeyserStatusCardConfig {
